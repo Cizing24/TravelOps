@@ -1,0 +1,13 @@
+{
+  "name": "travelops",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -i resources/css/app.css -o public/build/app.css --minify",
+    "smoke:browser": "node tests/Browser/smoke.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "playwright-core": "^1.65.0",
+    "tailwindcss": "^4.1.0"
+  }
+}

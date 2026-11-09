@@ -1,0 +1,15 @@
+.git
+.env
+.env.testing
+.runtime
+node_modules
+vendor
+public/build
+public/css/filament
+public/js/filament
+public/fonts/filament
+bootstrap/cache/*.php
+storage/logs/*.log
+storage/framework/views/*.php
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore

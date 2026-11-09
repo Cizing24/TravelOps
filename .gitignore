@@ -1,0 +1,12 @@
+/.env
+/.env.testing
+/.runtime/
+/vendor/
+/node_modules/
+/public/build/
+/public/css/filament/
+/public/js/filament/
+/public/fonts/filament/
+/bootstrap/cache/*.php
+/.phpunit.cache/
+/.phpunit.result.cache

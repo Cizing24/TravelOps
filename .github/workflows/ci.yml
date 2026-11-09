@@ -1,0 +1,31 @@
+name: TravelOps CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Start MySQL, Redis and the app
+        run: docker compose up --build -d --wait
+      - name: PHP formatting
+        run: docker compose exec -T app php vendor/bin/pint --test
+      - name: Static analysis
+        run: docker compose exec -T app php vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - name: Unit, HTTP, MySQL concurrency and Redis integration
+        run: docker compose exec -T app php vendor/bin/phpunit
+      - name: Local health and storefront smoke
+        run: |
+          curl --fail --retry 3 http://127.0.0.1:8080/up
+          curl --fail http://127.0.0.1:8080/products | grep -q 'TravelOps'
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Stop test services
+        if: always()
+        run: docker compose down -v
