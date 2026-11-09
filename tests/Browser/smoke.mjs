@@ -51,7 +51,8 @@ try {
     await customer.goto('/products');
     assert.ok(await customer.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (screenshots) await customer.screenshot({ path: screenshots + '/catalog-mobile.png' });
-    await buy(customer, 'coast-four', 'duplicate');
+    const bundleUrl = await buy(customer, 'coast-four', 'duplicate');
+    const bundleReference = bundleUrl.split('/').pop();
     const bundleCode = await ticket(customer);
     assert.match(bundleCode, /^[a-f0-9]{48}$/);
     for (const venue of ['潮線水族館', '港城設計館', '岬角觀景台', '風土工藝館']) {
@@ -74,8 +75,12 @@ try {
 
     const operator = await open('operator');
     assert.equal((await operator.goto('/ops/orders')).status(), 200);
-    await operator.getByText('交易紀錄', { exact: true }).first().click();
-    await operator.getByRole('dialog').getByText('付款結果', { exact: true }).waitFor();
+    const bundleRow = operator.getByRole('row').filter({ hasText: bundleReference });
+    await bundleRow.getByText('交易紀錄', { exact: true }).click();
+    const transaction = operator.getByRole('dialog');
+    await transaction.getByText(bundleReference, { exact: true }).waitFor();
+    await transaction.getByText('付款結果', { exact: true }).waitFor();
+    await transaction.getByText('開券追蹤編號', { exact: true }).waitFor();
     assert.equal((await operator.goto('/ops/users')).status(), 403);
     const admin = await open('admin');
     assert.equal((await admin.goto('/ops/users')).status(), 200);

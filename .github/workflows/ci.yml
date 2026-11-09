@@ -11,8 +11,19 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - name: Record runner and validate Compose configuration
+        run: |
+          git rev-parse HEAD
+          docker version
+          docker compose version
+          docker compose config --quiet
       - name: Start MySQL, Redis and the app
-        run: docker compose up --build -d --wait
+        run: |
+          docker compose up --build -d --wait
+          docker compose ps --all
+          docker compose exec -T app php --version
+          docker compose exec -T mysql mysqld --version
+          docker compose exec -T redis redis-server --version
       - name: PHP formatting
         run: docker compose exec -T app php vendor/bin/pint --test
       - name: Static analysis
@@ -21,8 +32,22 @@ jobs:
         run: docker compose exec -T app php vendor/bin/phpunit
       - name: Local health and storefront smoke
         run: |
-          curl --fail --retry 3 http://127.0.0.1:8080/up
-          curl --fail http://127.0.0.1:8080/products | grep -q 'TravelOps'
+          curl --fail --retry 3 --output /dev/null --write-out '/up HTTP %{http_code}\n' http://127.0.0.1:8080/up
+          curl --fail http://127.0.0.1:8080/products | grep 'TravelOps' >/dev/null
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Chrome demo on the Compose stack
+        run: |
+          node --version
+          google-chrome --version
+          npm ci --no-audit --no-fund
+          credentials="$(mktemp)"
+          trap 'rm -f "$credentials"' EXIT
+          docker compose exec -T app php artisan travelops:demo --no-ansi > "$credentials"
+          TRAVELOPS_DEMO_CREDENTIALS="$credentials" npm run smoke:browser
+          docker compose logs --no-color --tail 25 scheduler queue
       - name: Service logs on failure
         if: failure()
         run: docker compose logs --tail 100
