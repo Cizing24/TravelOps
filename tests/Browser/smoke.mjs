@@ -48,6 +48,11 @@ try {
     await desktop.getByRole('heading', { name: '在售票券' }).waitFor();
     if (screenshots) await desktop.screenshot({ path: screenshots + '/catalog-desktop.png' });
     const customer = await open('customer', { width: 390, height: 844 });
+    await customer.goto('/my/notifications');
+    await customer.getByLabel('模擬 Email', { exact: true }).check();
+    await customer.getByLabel('模擬 LINE', { exact: true }).check();
+    await customer.getByRole('button', { name: '儲存通知偏好' }).click();
+    await customer.getByText('通知偏好已儲存。', { exact: true }).waitFor();
     await customer.goto('/products');
     assert.ok(await customer.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (screenshots) await customer.screenshot({ path: screenshots + '/catalog-mobile.png' });
@@ -96,12 +101,14 @@ try {
     await operator.goto('/ops/refunds');
     const row = operator.getByRole('row').filter({ hasText: refundUrl.split('/').pop() });
     await row.getByText('核准模擬退款', { exact: true }).click();
+    await operator.getByLabel('模擬退款情境').selectOption('delayed');
     await operator.getByRole('button', { name: '確認退款', exact: true }).click();
-    await row.getByText('已退款', { exact: true }).waitFor();
+    await row.getByText('待處理', { exact: true }).waitFor({ timeout: 40000 });
+    await row.getByText('已退款', { exact: true }).waitFor({ timeout: 60000 });
     await customer.goto(refundedTicket);
     await customer.getByText('已撤銷', { exact: true }).first().waitFor();
     assert.equal(await customer.getByRole('img', { name: '場館核銷 QR Code' }).count(), 0);
-    console.log('PASS Chrome operator refund confirmation and revoked QR');
+    console.log('PASS Chrome Journey H pending refund, signed settlement and revoked QR');
 
     const asyncUrl = await buy(customer, 'island-craft', 'duplicate');
     assert.match(await ticket(customer), /^[a-f0-9]{48}$/);
@@ -136,6 +143,36 @@ try {
     assert.equal((await supervisor.goto(storePath + '/closing')).status(), 200);
     await supervisor.getByText('現金', { exact: true }).waitFor();
     console.log('PASS Chrome Journey G POS sale, ticket, store isolation and daily closing');
+
+    await operator.goto('/ops/reconciliation');
+    await operator.getByRole('button', { name: '重新取得帳冊並對帳' }).click();
+    const orphan = operator.locator('article').filter({ hasText: '000000000080' });
+    await orphan.getByRole('heading', { name: /外部有紀錄但內部無紀錄/ }).waitFor();
+    await orphan.getByLabel('處理原因').fill('已確認為展示帳冊差異');
+    await orphan.getByRole('button', { name: '標記已處理' }).click();
+    await orphan.getByText('處理原因 已確認為展示帳冊差異', { exact: true }).waitFor();
+    await operator.getByRole('button', { name: '重新取得帳冊並對帳' }).click();
+    await operator.waitForFunction(() => document.querySelectorAll('article').length > 0);
+    assert.equal(await orphan.count(), 1);
+    console.log('PASS Chrome Journey I reconciliation, review reason and rerun');
+
+    await customer.goto('/my/notifications');
+    for (const title of ['付款已確認', '票券已開立', '退款已確認']) {
+        await customer.getByRole('heading', { name: title, exact: true }).first().waitFor();
+    }
+    await customer.getByRole('button', { name: '標記已讀' }).first().click();
+    await customer.getByText(/· 已讀/).first().waitFor();
+    await operator.goto('/ops/notification-deliveries');
+    await operator.getByText('已模擬投遞', { exact: true }).first().waitFor();
+    await operator.goto('/ops/reports');
+    await operator.getByLabel('通路', { exact: true }).selectOption('pos');
+    await operator.getByRole('button', { name: '套用報表篩選' }).click();
+    await operator.getByText('門市 灣岸展示門市 · 1 筆 · NT$ 320', { exact: true }).waitFor();
+    const download = operator.waitForEvent('download');
+    await operator.getByRole('link', { name: '匯出 CSV' }).click();
+    const csv = fs.readFileSync(await (await download).path(), 'utf8');
+    assert.match(csv, /灣岸展示門市,32000,1/);
+    console.log('PASS Chrome Journey J inbox, simulated delivery, filtered report and CSV');
     assert.deepEqual(errors, []);
 } finally {
     await browser.close();

@@ -9,6 +9,8 @@ use App\Application\RefundOrder;
 use App\Infrastructure\MockGateway;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\Supplier;
+use App\Models\SupplierStatement;
 use App\Models\User;
 use App\Models\Venue;
 use Database\Seeders\DatabaseSeeder;
@@ -18,7 +20,9 @@ use Illuminate\Support\Str;
 
 final class Demo extends Command
 {
-    protected $signature = 'travelops:demo {--reset-passwords : Generate new passwords for existing demo accounts}';
+    protected $signature = 'travelops:demo
+        {--reset-passwords : Generate new passwords for existing demo accounts}
+        {--reconciliation-fixture : Add a synthetic unmatched supplier statement for today}';
 
     protected $description = 'Create the synthetic TravelOps catalog, demo users and example transactions';
 
@@ -72,6 +76,15 @@ final class Demo extends Command
         $this->example($users['customer'], $users['operator'], 2, 'bay-aquarium', 'payment_failed');
         $this->example($users['customer'], $users['operator'], 3, 'bay-aquarium', 'refunded');
         $this->example($users['customer'], $users['operator'], 4, 'cape-view', 'issuance_failed');
+        if ($this->option('reconciliation-fixture')) {
+            $supplier = Supplier::where('name', '島岸合作票務')->firstOrFail();
+            $day = (int) now('Asia/Taipei')->format('Ymd');
+            SupplierStatement::firstOrCreate(['request_key' => sprintf('0dba0000-5070-4000-8000-%012d', $day)], [
+                'supplier_id' => $supplier->id,
+                'order_reference' => '0dba0000-5070-4000-8000-000000000080',
+                'quantity' => 1, 'ready_at' => now(),
+            ]);
+        }
         $this->info('展示情境已備妥。');
 
         return self::SUCCESS;
@@ -93,7 +106,8 @@ final class Demo extends Command
         }
         if ($outcome === 'refunded' && $order->refresh()->status === 'fulfilled') {
             $refunds = app(RefundOrder::class);
-            $refunds->review($operator, $refunds->request($customer, $order), true);
+            $refund = $refunds->review($operator, $refunds->request($customer, $order), true);
+            $refunds->process($refund->id);
         }
     }
 }

@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->preventRequestForgery(except: ['webhooks/mock', 'webhooks/mock-suppliers/*']);
+        $middleware->preventRequestForgery(except: ['webhooks/mock', 'webhooks/mock-suppliers/*', 'webhooks/mock-refunds']);
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

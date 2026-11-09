@@ -204,7 +204,9 @@ final class FulfillmentTest extends TestCase
         } catch (AuthorizationException) {
             self::assertSame('requested', $refund->refresh()->status);
         }
-        $this->assertSame('processed', $service->review($operator, $refund, true)->status);
+        $this->assertSame('approved', $service->review($operator, $refund, true)->status);
+        $service->process($refund->id);
+        $this->assertSame('processed', $refund->refresh()->status);
         $this->assertSame('processed', $service->review($operator, $refund, true)->status);
         $this->assertSame('revoked', $ticket->refresh()->status);
         $this->assertSame('returned', $unused->reservation()->firstOrFail()->status);

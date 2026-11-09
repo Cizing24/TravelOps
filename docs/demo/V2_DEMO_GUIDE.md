@@ -1,7 +1,7 @@
 # TravelOps V2 展示
 
 使用 README 的本機 Compose 指令啟動合成環境。以
-`docker compose exec -T app php artisan travelops:demo --no-ansi`
+`docker compose exec -T app php artisan travelops:demo --reconciliation-fixture --no-ansi`
 建立展示帳號及交易。指令只在本地專用展示資料庫執行，請將新生成的密碼保存在本機。
 
 ## 多供應商履約
@@ -18,3 +18,23 @@
 3. 以 `pos-supervisor-a@travelops.test` 查看灣岸展示門市的日結。日結按臺灣營業日、付款方式和實際已付款訂單統計。
 4. 以營運人員在 `/ops/inventory-movements` 查看同一商品的預留與出售紀錄。管理員可在商品頁輸入理由並調整庫存。
 5. `pos-b@travelops.test` 可進入港城展示門市。以該帳號開啟灣岸門市的銷售明細會收到 HTTP 403。
+
+## 非同步退款
+
+1. 旅客購買票券並完成付款，保留未核銷狀態。
+2. 從訂單詳情申請整筆退款。營運人員到 `/ops/refunds` 選擇核准及「延遲確認」。
+3. 觀察待處理到已退款。等待期間，場館輸入同張票的憑證會收到暫停核銷訊息。
+4. 退款確認後，旅客票券頁會顯示撤銷，庫存流水新增一筆退款回補。
+
+## 交易對帳
+
+1. 以營運人員開啟 `/ops/reconciliation` 並執行當日對帳。
+2. 查找展示帳冊參照尾碼 `000000000080`，確認畫面標記外部有紀錄、內部查無訂單。
+3. 輸入原因並標記已處理。再次執行同日對帳，原差異保留處理結果。
+
+## 通知與報表
+
+1. 旅客在 `/my/notifications` 啟用模擬 Email 和 LINE，再完成付款、開券或退款。
+2. 開啟通知中心查看站內訊息並標記已讀。營運人員可在 `/ops/notification-deliveries` 查看模擬投遞。
+3. 營運人員在 `/ops/reports` 選日期、通路、門市或供應商，確認金額後匯出 CSV。
+4. 若啟用 LINE，距到期一天的提醒會模擬首次投遞失敗，供營運查看自動重試。

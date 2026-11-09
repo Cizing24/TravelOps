@@ -76,6 +76,7 @@ final class PaymentWebhook
                     $order->issuance()->create([
                         'trace_id' => (string) Str::uuid(), 'status' => 'pending', 'available_at' => now(),
                     ]);
+                    app(NotificationCenter::class)->order($order, 'paid');
                     $outcome = 'paid';
                 }
             }

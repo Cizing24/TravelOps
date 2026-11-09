@@ -20,7 +20,9 @@ final class User extends Authenticatable implements FilamentUser
 
     protected function casts(): array
     {
-        return ['password' => 'hashed'];
+        return [
+            'password' => 'hashed', 'notification_email' => 'boolean', 'notification_line' => 'boolean', 'remind_expiry' => 'boolean',
+        ];
     }
 
     public function canAccessPanel(Panel $panel): bool

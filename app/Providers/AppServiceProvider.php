@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Application\NotificationChannel;
+use App\Application\RefundGateway;
 use App\Application\SupplierProvider;
+use App\Infrastructure\MockNotificationChannel;
+use App\Infrastructure\MockRefundGateway;
 use App\Infrastructure\MockSupplier;
 use App\Models\User;
 use Illuminate\Foundation\Events\DiagnosingHealth;
@@ -18,6 +22,8 @@ final class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(SupplierProvider::class, MockSupplier::class);
+        $this->app->bind(RefundGateway::class, MockRefundGateway::class);
+        $this->app->bind(NotificationChannel::class, MockNotificationChannel::class);
     }
 
     public function boot(): void

@@ -1,6 +1,6 @@
 # TravelOps
 
-TravelOps 是獨立原創的旅遊電子票券履約與營運管理系統，用於展示庫存預留、模擬付款、異步開券、四館聯票核銷與退款。這是求職展示專案，與太金國際旅行社有限公司無關，非其官方產品。所有場館、帳號及交易均為示意。
+TravelOps 是旅遊電子票券履約與營運展示系統。V2 涵蓋線上與門市共用庫存、多供應商開券、非同步退款、交易對帳、通知及營運報表。場館、帳號和交易均使用合成資料。
 
 ## 本地啟動
 
@@ -8,12 +8,12 @@ TravelOps 是獨立原創的旅遊電子票券履約與營運管理系統，用�
 
 ```sh
 docker compose up --build -d --wait
-docker compose exec app php artisan travelops:demo
+docker compose exec app php artisan travelops:demo --reconciliation-fixture
 ```
 
 開啟 [票券目錄](http://localhost:8080/products)、[場館核銷](http://localhost:8080/merchant/redemptions) 或 [Filament 營運台](http://localhost:8080/ops)。第一次啟動會遷移並建立示意商品，第二行會產生 Demo 帳密與交易範例。初始化服務將應用程式金鑰與 Webhook HMAC 密鑰保存在本地 volume。Web 只綁定 loopback。MySQL 與 Redis 只開放給 Compose 網路。
 
-遺失 Demo 密碼時執行 `docker compose exec app php artisan travelops:demo --reset-passwords`。帳號按旅客、管理員、營運與個別場館人員分開。操作流程見 [Demo 指引](docs/demo/DEMO_GUIDE.md)。
+遺失 Demo 密碼時執行 `docker compose exec app php artisan travelops:demo --reset-passwords`。門市人員從 `/pos` 進入授權門市。操作流程見 [V2 展示指南](docs/demo/V2_DEMO_GUIDE.md)。
 
 | 示範 | 操作 |
 |---|---|
@@ -35,7 +35,7 @@ docker compose exec -T app php vendor/bin/phpunit
 
 ## 瀏覽器煙霧測試
 
-另外準備 Node 24 及 Chrome，可在專用 Demo DB 重跑瀏覽器旅程。先將 `travelops:demo --reset-passwords` 的輸出存到未追蹤的 `.runtime/demo-credentials.txt`，再執行 `npm ci` 和 `npm run smoke:browser`。可用 `TRAVELOPS_URL` 指定 Demo 網址，或用 `TRAVELOPS_DEMO_CREDENTIALS` 指定本機帳密檔。測試會建立示意訂單、核銷與退款。
+另外準備 Node 24 及 Chrome，可在乾淨的專用 Demo DB 重跑瀏覽器旅程。先將 `travelops:demo --reset-passwords --reconciliation-fixture` 的輸出存到未追蹤的 `.runtime/demo-credentials.txt`，再執行 `npm ci` 和 `npm run smoke:browser`。可用 `TRAVELOPS_URL` 指定 Demo 網址，或用 `TRAVELOPS_DEMO_CREDENTIALS` 指定本機帳密檔。
 
 ## 架構
 
@@ -55,7 +55,7 @@ flowchart LR
     Worker --> DB
 ```
 
-架構與邊界見 [系統總覽](docs/architecture/SYSTEM_OVERVIEW.md)、[ERD](docs/architecture/DATA_MODEL.md) 與 [API](docs/api/API_REFERENCE.md)。本次結果見 [MVP 成果報告](docs/reports/MVP_DELIVERY_REPORT.md)。
+架構與邊界見 [V2 系統總覽](docs/architecture/V2_SYSTEM_OVERVIEW.md)、[V2 資料模型](docs/architecture/V2_DATA_MODEL.md) 及 [報表定義](docs/architecture/REPORTING_DEFINITIONS.md)。驗證結果見 [V2 交付報告](docs/reports/V2_DELIVERY_REPORT.md)。
 
 ## 展示限制
 

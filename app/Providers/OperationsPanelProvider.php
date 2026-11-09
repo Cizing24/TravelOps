@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Filament\Pages\Reconciliation;
+use App\Filament\Pages\Reports;
 use App\Filament\Widgets\OperationsStats;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -26,7 +28,7 @@ final class OperationsPanelProvider extends PanelProvider
             ->default()->id('operations')->path('ops')->login()->brandName('TravelOps 營運台')
             ->colors(['primary' => Color::Emerald])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
-            ->pages([Dashboard::class])->widgets([OperationsStats::class])
+            ->pages([Dashboard::class, Reconciliation::class, Reports::class])->widgets([OperationsStats::class])
             ->middleware([
                 EncryptCookies::class, AddQueuedCookiesToResponse::class, StartSession::class,
                 AuthenticateSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class,

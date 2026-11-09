@@ -58,7 +58,8 @@ final class Issuance
             $order = Order::query()->lockForUpdate()->findOrFail($orderId);
             $event = OutboxEvent::query()->lockForUpdate()->findOrFail($eventId);
             if (! in_array($event->status, self::READY, true) || $event->available_at->isFuture()
-                || ! OrderState::canIssue($order->status)) {
+                || ! OrderState::canIssue($order->status)
+                || $order->refund()->whereIn('status', RefundOrder::BLOCK_REDEMPTION)->exists()) {
                 return null;
             }
             $event->update(['lease_token' => $lease, 'available_at' => now()->addMinutes(2), 'queued_until' => null]);
@@ -153,6 +154,11 @@ final class Issuance
         }
         $order->update(['status' => $result === 'success' ? 'fulfilled' : 'fulfilling']);
         Audit::record('issuance.'.$status, null, $order->id, ['attempt' => $attempt, 'supplier_id' => $item->supplier_id], $event->trace_id);
+        if ($status === 'succeeded') {
+            app(NotificationCenter::class)->order($order, 'issued');
+        } elseif ($status === 'permanently_failed') {
+            app(NotificationCenter::class)->operations('supplier_failed', $event->trace_id, $order->id);
+        }
     }
 
     public function requeue(User $actor, OutboxEvent $event, string $reason = '例行開券補償'): void

@@ -45,7 +45,7 @@ jobs:
           npm ci --no-audit --no-fund
           credentials="$(mktemp)"
           trap 'rm -f "$credentials"' EXIT
-          docker compose exec -T app php artisan travelops:demo --no-ansi > "$credentials"
+          docker compose exec -T app php artisan travelops:demo --reconciliation-fixture --no-ansi > "$credentials"
           TRAVELOPS_DEMO_CREDENTIALS="$credentials" npm run smoke:browser
           docker compose logs --no-color --tail 25 scheduler queue
       - name: Service logs on failure

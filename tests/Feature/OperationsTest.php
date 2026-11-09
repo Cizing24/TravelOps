@@ -78,8 +78,10 @@ final class OperationsTest extends TestCase
         $this->issue($order);
         $refund = app(RefundOrder::class)->request($operator, $order);
         Livewire::test(ListRefund::class)
-            ->callAction(TestAction::make('approve')->table($refund))
+            ->callAction(TestAction::make('approve')->table($refund), ['scenario' => 'success'])
             ->assertHasNoActionErrors();
+        self::assertSame('approved', $refund->refresh()->status);
+        app(RefundOrder::class)->process($refund->id);
         self::assertSame('processed', $refund->refresh()->status);
         $this->assertDatabaseHas('tickets', ['order_id' => $order->id, 'status' => 'revoked']);
     }

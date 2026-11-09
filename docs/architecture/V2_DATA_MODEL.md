@@ -22,6 +22,11 @@ erDiagram
     ORDER ||--o{ INVENTORY_MOVEMENT : accounts
     PRODUCT ||--o{ INVENTORY_MOVEMENT : changes
     SUPPLIER ||--o{ SUPPLIER_STATEMENT : supplies
+    ORDER ||--o| REFUND : reverses
+    REFUND ||--o| REFUND_STATEMENT : "matches by refund UUID"
+    RECONCILIATION_RUN ||--o{ RECONCILIATION_FINDING : observes
+    USER ||--o{ NOTIFICATION_MESSAGE : receives
+    NOTIFICATION_MESSAGE ||--o{ NOTIFICATION_DELIVERY : schedules
 ```
 
 Issuance claims the outbox event with a two-minute lease, calls the provider
@@ -39,3 +44,15 @@ zero available-stock delta because the reservation already reduced availability.
 Stock movement uniqueness is scoped to order and movement kind. Adjustments
 have an operator and reason and update the same authoritative balance. Order
 reads and ticket links in the POS flow require active store membership.
+
+Refund approval is serialized by the order lock and persisted in the refund
+row. Processing claims a timed lease using the attempt number as a fence.
+Callback Inbox keys are unique by event type and UUID. Once the provider
+confirms, a single transaction applies refund, ticket revocation, stock
+movement and notifications. An existing `processed` refund does not enter
+the worker's ready set.
+
+Reconciliation stores each run separately and upserts observations by a
+SHA-256 fingerprint. Notification messages have a unique recipient,
+template and event tuple. Each message has at most one delivery row per
+simulated external channel. The in-app message is the in-app delivery.

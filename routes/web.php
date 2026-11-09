@@ -1,10 +1,13 @@
 <?php
 
+use App\Application\RefundCallback;
 use App\Application\SupplierCallback;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\MerchantController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Http\JsonResponse;
@@ -25,8 +28,19 @@ Route::post('/webhooks/mock-suppliers/{supplier}', function (int $supplier, Requ
         'outcome' => $callback->receive($supplier, $request->getContent(), (string) $request->header('X-TravelOps-Signature')),
     ]);
 })->whereNumber('supplier')->middleware('throttle:120,1');
+Route::post('/webhooks/mock-refunds', function (Request $request, RefundCallback $callback): JsonResponse {
+    abort_unless(app()->environment('testing'), 404);
+
+    return response()->json([
+        'outcome' => $callback->receive($request->getContent(), (string) $request->header('X-TravelOps-Signature')),
+    ]);
+})->middleware('throttle:120,1');
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/my/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/my/notifications/preferences', [NotificationController::class, 'preferences'])->name('notifications.preferences');
+    Route::post('/my/notifications/{message}/read', [NotificationController::class, 'read'])->whereNumber('message')->name('notifications.read');
+    Route::get('/ops/reports.csv', [ReportController::class, 'csv'])->middleware('throttle:10,1')->name('reports.csv');
     Route::get('/my/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:30,1')->name('orders.store');
     Route::get('/my/orders/{order:reference}', [OrderController::class, 'show'])->name('orders.show');

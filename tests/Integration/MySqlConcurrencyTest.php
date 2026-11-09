@@ -3,6 +3,7 @@
 namespace Tests\Integration;
 
 use App\Application\PaymentWebhook;
+use App\Application\RefundOrder;
 use App\Infrastructure\MockGateway;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -98,6 +99,36 @@ final class MySqlConcurrencyTest extends TestCase
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseHas('inventory_balances', ['product_id' => $product->id, 'available' => 0]);
         $this->assertDatabaseHas('inventory_movements', ['product_id' => $product->id, 'kind' => 'reservation', 'delta' => -1]);
+    }
+
+    public function test_refund_approval_and_redemption_cannot_both_win(): void
+    {
+        $product = Product::factory()->stocked()->create();
+        $venue = $product->venues()->firstOrFail();
+        $order = $this->place($product);
+        $this->pay($order);
+        $this->issue($order);
+        $operator = User::factory()->create(['role' => 'operator']);
+        $merchant = User::factory()->create(['role' => 'merchant']);
+        $merchant->venues()->attach($venue);
+        $refunds = app(RefundOrder::class);
+        $refund = $refunds->request($operator, $order);
+        $ticket = $order->tickets()->firstOrFail();
+
+        $result = $this->race('orders', $order->id, [
+            ['approve_refund', $refund->id, $operator->id],
+            ['redeem', $order->id, $merchant->id, $venue->id, $ticket->code],
+        ]);
+        $refunds->process($refund->id);
+        if ($refund->refresh()->status === 'processed') {
+            self::assertEqualsCanonicalizing(['approved', 'refund_pending'], $result);
+            $this->assertDatabaseCount('redemptions', 0);
+            self::assertSame('revoked', $ticket->refresh()->status);
+        } else {
+            self::assertEqualsCanonicalizing(['rejected', 'redeemed'], $result);
+            $this->assertDatabaseCount('redemptions', 1);
+            self::assertSame('rejected', $refund->status);
+        }
     }
 
     public function test_payment_and_expiry_contend_without_releasing_paid_stock(): void
