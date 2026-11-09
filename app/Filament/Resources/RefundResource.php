@@ -39,6 +39,9 @@ final class RefundResource extends OperationsResource
         ])->poll('5s')->defaultSort('id', 'desc')->filters([
             self::statusFilter(['requested', 'approved', 'submitted', 'pending', 'processed', 'failed', 'requires_review', 'rejected']),
         ])->recordActions([
+            Action::make('reconciliation')->label('對帳差異')->url(fn (Refund $record): string => url('/ops/reconciliation').'?'.http_build_query([
+                'reference' => $record->order->reference, 'day' => $record->created_at?->timezone('Asia/Taipei')->toDateString(),
+            ])),
             Action::make('approve')->label('核准模擬退款')->requiresConfirmation()->modalSubmitActionLabel('確認退款')
                 ->schema([Select::make('scenario')->label('模擬退款情境')->options(MockRefundGateway::SCENARIOS)->default('success')->required()])
                 ->visible(fn (Refund $record) => $record->status === 'requested')

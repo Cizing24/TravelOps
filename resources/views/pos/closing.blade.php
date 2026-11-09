@@ -4,8 +4,12 @@
     <section class="card">
         <form class="flex flex-wrap items-end gap-3" method="get" action="{{ route('pos.closing', $store) }}">
             <div>
-                <label for="day">營業日（臺灣時間）</label>
-                <input type="date" id="day" name="day" value="{{ $day }}" required>
+                <label for="closing-from">營業起日（臺灣時間）</label>
+                <input type="date" id="closing-from" name="from" value="{{ $from }}" required>
+            </div>
+            <div>
+                <label for="closing-to">營業迄日（臺灣時間）</label>
+                <input type="date" id="closing-to" name="to" value="{{ $to }}" required>
             </div>
             <button class="button" type="submit">查詢日結</button>
         </form>
@@ -16,10 +20,10 @@
                     <dd>{{ $sale->count }} 筆 · {{ \App\Domain\Money::twd((int) $sale->gross) }}</dd>
                 </div>
             @empty
-                <div class="row"><dt>當日銷售</dt><dd>0 筆</dd></div>
+                <div class="row"><dt>期間銷售</dt><dd>0 筆</dd></div>
             @endforelse
-            <div class="row"><dt>該日交易已退款</dt><dd>{{ $refunds }} 筆</dd></div>
-            <div class="row"><dt>該日交易開券異常</dt><dd>{{ $exceptions }} 筆</dd></div>
+            <div class="row"><dt>期間交易已退款</dt><dd>{{ $refunds }} 筆</dd></div>
+            <div class="row"><dt>期間交易開券異常</dt><dd>{{ $exceptions }} 筆</dd></div>
         </dl>
     </section>
 </x-layout>

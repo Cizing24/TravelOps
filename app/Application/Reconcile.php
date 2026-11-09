@@ -145,10 +145,13 @@ final class Reconcile
                     ->join('order_items as i', 'i.order_id', '=', 'o.id')
                     ->when($supplier !== null, fn (Builder $q) => $q->where('i.supplier_id', $supplier))
                     ->selectRaw("e.trace_id AS request_key, o.reference AS order_reference, i.quantity, i.supplier_id,
-                        e.created_at AS event_at, CASE WHEN e.status = 'succeeded' THEN 'succeeded'
+                        e.created_at AS event_at, CASE WHEN e.cancelled_at IS NOT NULL THEN 'cancelled'
+                        WHEN e.cancel_available_at IS NOT NULL OR e.cancel_error IS NOT NULL THEN 'pending'
+                        WHEN e.status = 'succeeded' THEN 'succeeded'
                         WHEN e.status IN ('permanently_failed', 'cancelled') THEN 'failed' ELSE 'pending' END AS result"), 'facts'),
                 DB::table('supplier_statements as s')->when($supplier !== null, fn (Builder $q) => $q->where('s.supplier_id', $supplier))
-                    ->selectRaw("s.request_key, s.order_reference, s.quantity, s.supplier_id, s.ready_at, 'succeeded' AS result"),
+                    ->selectRaw("s.request_key, s.order_reference, s.quantity, s.supplier_id, s.ready_at,
+                        CASE WHEN s.cancelled_at IS NOT NULL THEN 'cancelled' ELSE 'succeeded' END AS result"),
                 'event_at',
             ],
             'payment' => [

@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Application\Issuance;
 use App\Application\RefundOrder;
 use App\Infrastructure\MockRefundGateway;
 use App\Models\Product;
+use App\Models\SupplierStatement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -62,6 +64,13 @@ final class RefundProcessingTest extends TestCase
         self::assertSame('revoked', $ticket->refresh()->status);
         $this->assertDatabaseHas('inventory_balances', ['product_id' => $product->id, 'available' => 1]);
         self::assertSame(1, $order->reservation()->where('status', 'returned')->count());
+        $issuance = $order->issuance()->firstOrFail();
+        self::assertNotNull($issuance->cancel_available_at);
+        app(Issuance::class)->cancel($issuance->id);
+        app(Issuance::class)->cancel($issuance->id);
+        self::assertNotNull($issuance->refresh()->cancelled_at);
+        self::assertSame(1, $issuance->cancel_attempts);
+        self::assertNotNull(SupplierStatement::where('request_key', $issuance->trace_id)->sole()->cancelled_at);
     }
 
     public function test_decline_preserves_capture_and_unknown_outcome_is_queried(): void

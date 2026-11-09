@@ -15,6 +15,9 @@ before replaying a request.
 Keep one full-refund row per order. Approval does not settle the payment.
 Approved and unresolved refunds suspend redemption under the order lock.
 Only confirmed refunds revoke local entitlements and release sold stock.
+The same transaction schedules cancellation of an existing supplier issuance.
+The worker retries cancellation by the original request key without holding
+order locks. Unconfirmed cancellations stay visible for operator review.
 Historical `processed` refunds remain terminal. The scope excludes partial
 refunds and manual rewriting of captured amounts.
 

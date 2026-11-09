@@ -18,7 +18,7 @@ final class V2UpgradeTest extends TestCase
 
     public function test_additive_migrations_preserve_mvp_orders_tickets_and_processed_refunds(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 6])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 7])->assertSuccessful();
         self::assertFalse(Schema::hasColumn('orders', 'source_channel'));
         $product = Product::factory()->stocked(1)->create();
         $venue = $product->venues()->firstOrFail();

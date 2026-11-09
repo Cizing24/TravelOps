@@ -77,4 +77,21 @@ final class MockSupplier implements SupplierProvider
     {
         return $this->gateway->signature("supplier:{$supplierId}\n".$body);
     }
+
+    public function cancelIssuance(OrderItem $item, string $traceId): bool
+    {
+        if (! $this->gateway->enabled()) {
+            return false;
+        }
+        $statement = SupplierStatement::where('request_key', $traceId)->first();
+        if ($statement === null) {
+            return true;
+        }
+        if ($statement->supplier_id !== $item->supplier_id || $statement->order_reference !== $item->order->reference) {
+            return false;
+        }
+        SupplierStatement::whereKey($statement->id)->whereNull('cancelled_at')->update(['cancelled_at' => now()]);
+
+        return true;
+    }
 }

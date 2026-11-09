@@ -31,6 +31,7 @@ Artisan::command('travelops:reconcile {day?}', function (): void {
 });
 
 Schedule::command('travelops:relay')->everyTenSeconds();
+Schedule::call(fn () => app(Issuance::class)->relayCancellations())->name('travelops:supplier-cancel-relay')->everyTenSeconds();
 Schedule::command('travelops:expire')->everyMinute();
 Schedule::call(fn () => app(RefundOrder::class)->relay())->name('travelops:refund-relay')->everyTenSeconds();
 Schedule::command('travelops:reconcile')->dailyAt('02:00')->timezone('Asia/Taipei')->when(fn (): bool => app()->environment('local'));

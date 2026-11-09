@@ -36,6 +36,11 @@ final class SupplierIssuanceTest extends TestCase
             {
                 return null;
             }
+
+            public function cancelIssuance(OrderItem $item, string $traceId): bool
+            {
+                return true;
+            }
         };
 
         (new Issuance($provider))->process($order->issuance()->firstOrFail()->id);
@@ -67,6 +72,11 @@ final class SupplierIssuanceTest extends TestCase
             public function queryIssuance(OrderItem $item, string $traceId): ?array
             {
                 return null;
+            }
+
+            public function cancelIssuance(OrderItem $item, string $traceId): bool
+            {
+                return true;
             }
         };
         $issuance = new Issuance($provider);

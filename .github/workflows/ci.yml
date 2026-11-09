@@ -28,6 +28,8 @@ jobs:
         run: docker compose exec -T app php vendor/bin/pint --test
       - name: Static analysis
         run: docker compose exec -T app php vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - name: Composer manifest and lockfile
+        run: docker compose exec -T app composer validate --no-check-publish
       - name: Unit, HTTP, MySQL concurrency and Redis integration
         run: docker compose exec -T app php vendor/bin/phpunit
       - name: Local health and storefront smoke

@@ -61,11 +61,18 @@ final class OutboxEventResource extends OperationsResource
                 TextEntry::make('history.result')->label('歷次結果')->listWithLineBreaks(),
                 TextEntry::make('history.error')->label('歷次錯誤')->listWithLineBreaks(),
                 TextEntry::make('last_error')->label('最後錯誤'),
+                TextEntry::make('cancelled_at')->label('供應商確認撤銷時間')->dateTime(timezone: 'Asia/Taipei'),
+                TextEntry::make('cancel_available_at')->label('下次撤銷確認時間')->dateTime(timezone: 'Asia/Taipei'),
+                TextEntry::make('cancel_error')->label('撤銷錯誤代碼'),
             ]),
             self::guardedAction(Action::make('retry')->label('重新排程')->requiresConfirmation()
                 ->schema([Textarea::make('reason')->label('重新排程原因')->required()->maxLength(500)])
                 ->visible(fn (OutboxEvent $record) => $record->status === 'permanently_failed'),
                 fn (array $data, OutboxEvent $record) => app(Issuance::class)->requeue(auth()->user(), $record, $data['reason'])),
+            self::guardedAction(Action::make('retryCancellation')->label('重新排程撤銷')->requiresConfirmation()
+                ->schema([Textarea::make('reason')->label('重新排程原因')->required()->maxLength(500)])
+                ->visible(fn (OutboxEvent $record) => $record->cancel_error !== null && $record->cancel_available_at === null),
+                fn (array $data, OutboxEvent $record) => app(Issuance::class)->requeueCancellation(auth()->user(), $record, $data['reason'])),
         ]);
     }
 

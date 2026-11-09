@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Application\PointOfSale;
 use App\Application\RefundOrder;
+use App\Domain\RuleViolation;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Store;
@@ -12,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -76,15 +78,22 @@ final class PosController
     {
         $actor = $this->actor($request);
         abort_unless($actor->staffsStore($store) && $actor->role === 'pos_supervisor', 403);
-        $filters = $request->validate(['day' => 'nullable|date_format:Y-m-d']);
-        $day = $filters['day'] ?? now('Asia/Taipei')->toDateString();
-        $start = Carbon::parse($day, 'Asia/Taipei')->startOfDay();
+        $today = now('Asia/Taipei')->toDateString();
+        $filters = Validator::validate($request->query() + ['from' => $today, 'to' => $today], [
+            'from' => 'required|date_format:Y-m-d',
+            'to' => 'required|date_format:Y-m-d|after_or_equal:from',
+        ]);
+        $start = Carbon::parse($filters['from'], 'Asia/Taipei')->startOfDay();
+        $end = Carbon::parse($filters['to'], 'Asia/Taipei')->startOfDay()->addDay();
+        if ($start->copy()->addDays(92)->lt($end)) {
+            throw new RuleViolation('report_range', '日結查詢範圍最多 92 天。', 422);
+        }
         $orders = Order::where('store_id', $store->id)->whereHas('payment', fn ($query) => $query
             ->where('paid_at', '>=', $start->copy()->utc())
-            ->where('paid_at', '<', $start->copy()->addDay()->utc()));
+            ->where('paid_at', '<', $end->utc()));
 
         return view('pos.closing', [
-            'store' => $store, 'day' => $day,
+            'store' => $store, 'from' => $filters['from'], 'to' => $filters['to'],
             'sales' => (clone $orders)->selectRaw('payment_method, COUNT(*) AS count, SUM(total) AS gross')->groupBy('payment_method')->get(),
             'refunds' => (clone $orders)->whereHas('refund', fn ($query) => $query->where('status', 'processed'))->count(),
             'exceptions' => $orders->whereHas('issuance', fn ($query) => $query->where('status', 'permanently_failed'))->count(),

@@ -15,7 +15,7 @@ TWD minor units. Fees and taxes are outside the calculation.
 | Provider issuance | Outbox creation date defines the cohort. Success ratio is succeeded divided by cohort size, and confirmation latency is measured to completion. Attempts after the first include status checks and callbacks. |
 | Inventory | Held and sold are current reservation states of the selected date cohort. Available stock is the current shared balance, filtered by product supplier when selected. Movement counts and deltas use the movement timestamp. |
 | Reconciliation | Count by active, reviewed and converged status for the selected business dates. A scoped store or channel can only attribute discrepancies with a matching order. |
-| POS closing | Captured sales grouped by method on a single Taiwan business date for an assigned store. The refunded count concerns those original sales. |
+| POS closing | Captured sales grouped by method across the selected Taiwan business dates for an assigned store. The refunded count concerns those original sales. |
 
 The export uses UTF-8 with a BOM for spreadsheet compatibility. String cells
 with formula-like prefixes are apostrophe-prefixed. It contains aggregates

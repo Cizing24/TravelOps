@@ -38,6 +38,10 @@ final class OrderResource extends OperationsResource
         ])->defaultSort('id', 'desc')->filters([self::statusFilter(['pending_payment', 'paid', 'fulfilling', 'fulfilled', 'expired', 'cancelled', 'refunded'])])->recordActions([
             ViewAction::make()->label('交易紀錄')->schema([
                 TextEntry::make('reference')->label('訂單編號'),
+                TextEntry::make('reconciliation')->label('交易對帳')->state('查詢對帳差異')
+                    ->url(fn (Order $record): string => url('/ops/reconciliation').'?'.http_build_query([
+                        'reference' => $record->reference, 'day' => $record->created_at?->timezone('Asia/Taipei')->toDateString(),
+                    ])),
                 TextEntry::make('payment.status')->label('付款結果')->formatStateUsing(fn (string $state) => __('status.'.$state)),
                 TextEntry::make('payment.paid_at')->label('付款時間')->dateTime(timezone: 'Asia/Taipei'),
                 TextEntry::make('webhookEvents.outcome')->label('回呼結果')->listWithLineBreaks(),

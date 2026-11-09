@@ -32,6 +32,7 @@ final class SupplierResource extends OperationsResource
             TextColumn::make('adapter')->label('確認方式')->formatStateUsing(fn (string $state) => MockSupplier::ADAPTERS[$state] ?? $state),
             TextColumn::make('scenario')->label('開券情境')->formatStateUsing(fn (string $state) => MockSupplier::SCENARIOS[$state] ?? $state),
         ])->defaultSort('id', 'desc')->recordActions([
+            Action::make('reconciliation')->label('供應商對帳')->url(fn (Supplier $record): string => url('/ops/reconciliation').'?supplier='.$record->id),
             self::editor(true),
         ]);
     }

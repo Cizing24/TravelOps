@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 final class Reconciliation extends Page
 {
@@ -21,7 +22,9 @@ final class Reconciliation extends Page
 
     public string $day = '';
 
-    public ?int $supplier = null;
+    public string $supplier = '';
+
+    public string $reference = '';
 
     /** @var array<int, string> */
     public array $reasons = [];
@@ -33,14 +36,19 @@ final class Reconciliation extends Page
 
     public function mount(): void
     {
-        $this->day = now('Asia/Taipei')->toDateString();
+        $day = request()->string('day')->toString();
+        $this->day = preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $day) ? $day : now('Asia/Taipei')->toDateString();
+        $supplier = request()->string('supplier')->toString();
+        $this->supplier = ctype_digit($supplier) ? $supplier : '';
+        $reference = request()->string('reference')->toString();
+        $this->reference = Str::isUuid($reference) ? $reference : '';
     }
 
     public function reconcile(Reconcile $reconcile): void
     {
         Gate::authorize('operate');
         try {
-            $run = $reconcile->run($this->day, $this->supplier ?: null, auth()->user());
+            $run = $reconcile->run($this->day, ctype_digit($this->supplier) ? (int) $this->supplier : null, auth()->user());
             Notification::make()->title('對帳完成，共 '.$run->anomalies.' 筆差異')->success()->send();
         } catch (RuleViolation $error) {
             Notification::make()->title($error->getMessage())->danger()->send();
@@ -74,7 +82,9 @@ final class Reconciliation extends Page
             'runs' => ReconciliationRun::where('day', $this->day)->when($this->supplier,
                 fn ($query, $id) => $query->where('supplier_id', $id))->latest('id')->limit(10)->get(),
             'findings' => ReconciliationFinding::where('day', $this->day)->when($this->supplier,
-                fn ($query, $id) => $query->where('supplier_id', $id))->orderByRaw("status <> 'open'")->latest('id')->limit(100)->get(),
+                fn ($query, $id) => $query->where('supplier_id', $id))->when($this->reference,
+                    fn ($query, $reference) => $query->where('order_reference', $reference))
+                ->orderByRaw("status <> 'open'")->latest('id')->limit(100)->get(),
         ];
     }
 }

@@ -16,6 +16,10 @@
                 </select>
                 @error('supplier') <span role="alert">{{ $message }}</span> @enderror
             </div>
+            <div>
+                <label class="block" for="recon-reference">訂單參照</label>
+                <input id="recon-reference" type="search" wire:model.live.debounce.400ms="reference" maxlength="36">
+            </div>
             <x-filament::button type="submit" wire:loading.attr="disabled">重新取得帳冊並對帳</x-filament::button>
         </form>
     </x-filament::section>
@@ -37,7 +41,7 @@
                     <h2 class="font-semibold">{{ __('status.'.$finding->kind) }} · {{ __('status.'.$finding->severity) }}</h2>
                     <p>{{ __('status.'.$finding->source) }} · {{ __('status.'.$finding->status) }}</p>
                     <p class="break-all">追蹤編號 {{ $finding->correlation_id }}</p>
-                    <a class="break-all underline" href="{{ url('/ops/orders').'?search='.urlencode($finding->order_reference) }}">查詢訂單 {{ $finding->order_reference }}</a>
+                    <a class="break-all underline" href="{{ url($finding->source === 'refund' ? '/ops/refunds' : '/ops/orders').'?search='.urlencode($finding->order_reference) }}">查詢{{ $finding->source === 'refund' ? '退款' : '訂單' }} {{ $finding->order_reference }}</a>
                     <p>內部 {{ $finding->evidence['internal_status'] ?? '無紀錄' }} / {{ $finding->evidence['internal_value'] ?? '—' }}</p>
                     <p>外部 {{ $finding->evidence['external_status'] ?? '無紀錄' }} / {{ $finding->evidence['external_value'] ?? '—' }}</p>
                     @if($finding->status === 'open')

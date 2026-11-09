@@ -86,6 +86,75 @@ final class Issuance
         }, 5);
     }
 
+    public function relayCancellations(): void
+    {
+        $ids = OutboxEvent::where('cancel_available_at', '<=', now())->orderBy('cancel_available_at')->limit(100)->pluck('id');
+        foreach ($ids as $id) {
+            Bus::dispatch((new IssueTickets($id, cancel: true))->onConnection('redis'));
+        }
+    }
+
+    public function cancel(int $eventId): void
+    {
+        $event = DB::transaction(function () use ($eventId): ?OutboxEvent {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($eventId);
+            if ($locked->cancel_available_at === null || $locked->cancel_available_at->isFuture()) {
+                return null;
+            }
+            if ($locked->cancel_attempts >= 3) {
+                $locked->update(['cancel_available_at' => null, 'cancel_error' => 'supplier_cancel_unconfirmed']);
+                Audit::record('issuance.cancel_unconfirmed', null, $locked->order_id, ['attempt' => $locked->cancel_attempts], $locked->trace_id);
+
+                return null;
+            }
+            $locked->update(['cancel_available_at' => now()->addMinutes(2), 'cancel_attempts' => $locked->cancel_attempts + 1]);
+
+            return $locked;
+        }, 5);
+        if ($event === null) {
+            return;
+        }
+        try {
+            $item = OrderItem::where('order_id', $event->order_id)->firstOrFail();
+            $success = $this->supplier->cancelIssuance($item, $event->trace_id);
+        } catch (Throwable $error) {
+            report($error);
+            $success = false;
+        }
+        DB::transaction(function () use ($event, $success): void {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+            if ($locked->cancelled_at !== null || $locked->cancel_attempts !== $event->cancel_attempts) {
+                return;
+            }
+            $retry = ! $success && $locked->cancel_attempts < 3;
+            $locked->update([
+                'cancelled_at' => $success ? now() : null,
+                'cancel_error' => $success ? null : 'supplier_cancel_unconfirmed',
+                'cancel_available_at' => $retry ? now()->addSeconds(15 * $locked->cancel_attempts + random_int(0, 3)) : null,
+            ]);
+            Audit::record('issuance.cancel_'.($success ? 'succeeded' : 'unconfirmed'), null, $event->order_id,
+                ['attempt' => $locked->cancel_attempts], $event->trace_id);
+        }, 5);
+    }
+
+    public function requeueCancellation(User $actor, OutboxEvent $event, string $reason): void
+    {
+        Gate::forUser($actor)->authorize('operate');
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw new RuleViolation('invalid_reason', '請輸入 1 至 500 字的重新排程原因。', 422);
+        }
+        DB::transaction(function () use ($actor, $event, $reason): void {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+            if ($locked->cancel_error === null || $locked->cancel_available_at !== null || $locked->cancelled_at !== null) {
+                throw new RuleViolation('not_retryable', '只有重試結束的供應商撤銷可以重新排程。');
+            }
+            $locked->update(['cancel_attempts' => 0, 'cancel_available_at' => now()]);
+            Audit::record('issuance.cancel_requeued', $actor->id, $event->order_id,
+                ['reason' => $reason, 'before' => 'unconfirmed', 'after' => 'pending'], $event->trace_id);
+        }, 5);
+    }
+
     public function confirmCallback(OutboxEvent $event, OrderItem $item, string $eventId, string $status, string $hash): string
     {
         return DB::transaction(function () use ($event, $item, $eventId, $status, $hash): string {

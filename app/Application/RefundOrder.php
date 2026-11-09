@@ -210,6 +210,7 @@ final class RefundOrder
         $this->checkout->releaseInventory($order, 'sold', 'returned', $refund->reviewed_by);
         $order->issuance()->whereIn('status', ['pending', 'retryable_failed', 'permanently_failed'])
             ->update(['status' => 'cancelled', 'queued_until' => null]);
+        $order->issuance()->where('status', 'succeeded')->update(['cancel_available_at' => now()]);
         TicketEntitlement::whereIn('ticket_id', $order->tickets()->select('tickets.id'))->update(['status' => 'revoked']);
         $order->tickets()->update(['status' => 'revoked']);
         $order->update(['status' => 'refunded']);

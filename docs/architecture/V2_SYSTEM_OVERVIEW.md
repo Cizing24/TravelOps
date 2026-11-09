@@ -27,7 +27,7 @@ day. Merchants redeem only at assigned venues. Operators review refunds and
 operate reconciliation, delivery monitoring and reports. Admins maintain
 suppliers, stores, role assignments and inventory adjustments.
 
-The scheduler relays issuance, refunds and simulated notifications every ten
+The scheduler relays issuance, supplier cancellations, refunds and simulated notifications every ten
 seconds. It releases expired holds every minute and checks ticket reminders
 hourly. Daily reconciliation runs at 02:00 Taiwan time for the previous
 business date. Manual reconciliation uses the same comparison as the schedule.

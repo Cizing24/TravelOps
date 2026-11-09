@@ -15,4 +15,6 @@ interface SupplierProvider
 
     /** @return array{result: string, error: ?string}|null */
     public function queryIssuance(OrderItem $item, string $traceId): ?array;
+
+    public function cancelIssuance(OrderItem $item, string $traceId): bool;
 }
