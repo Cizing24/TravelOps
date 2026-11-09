@@ -66,6 +66,7 @@ final class RefundProcessingTest extends TestCase
         self::assertSame(1, $order->reservation()->where('status', 'returned')->count());
         $issuance = $order->issuance()->firstOrFail();
         self::assertNotNull($issuance->cancel_available_at);
+        $this->travelTo($issuance->cancel_available_at->addSecond());
         app(Issuance::class)->cancel($issuance->id);
         app(Issuance::class)->cancel($issuance->id);
         self::assertNotNull($issuance->refresh()->cancelled_at);

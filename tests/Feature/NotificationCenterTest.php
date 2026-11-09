@@ -44,6 +44,8 @@ final class NotificationCenterTest extends TestCase
         $this->assertDatabaseHas('notification_deliveries', ['channel' => 'line', 'status' => 'suppressed']);
         $this->actingAs(User::factory()->create())->get('/my/notifications')->assertOk()->assertDontSee('付款已確認');
         $this->post('/my/notifications/'.$message->id.'/read')->assertNotFound();
+        $filter = http_build_query(['filters' => ['status' => ['value' => 'sent']]]);
+        $this->actingAs($operator)->get('/ops/notification-deliveries?'.$filter)->assertOk()->assertSee('已模擬投遞');
     }
 
     public function test_expiry_reminders_deduplicate_and_retry_the_simulated_line_failure(): void

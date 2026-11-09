@@ -29,7 +29,7 @@ final class NotificationDeliveryResource extends OperationsResource
             TextColumn::make('attempts')->label('嘗試次數'),
             TextColumn::make('last_error')->label('錯誤代碼'),
             TextColumn::make('available_at')->label('下次嘗試')->dateTime(timezone: 'Asia/Taipei'),
-        ])->defaultSort('id', 'desc')->filters([
+        ])->poll('5s')->defaultSort('id', 'desc')->filters([
             self::statusFilter(['queued', 'sent', 'failed', 'suppressed']),
         ])->recordActions([
             self::guardedAction(Action::make('retry')->label('重新排程通知')->requiresConfirmation()

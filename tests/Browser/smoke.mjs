@@ -162,8 +162,9 @@ try {
     }
     await customer.getByRole('button', { name: '標記已讀' }).first().click();
     await customer.getByText(/· 已讀/).first().waitFor();
-    await operator.goto('/ops/notification-deliveries');
-    await operator.getByText('已模擬投遞', { exact: true }).first().waitFor();
+    const sentFilter = new URLSearchParams({ 'filters[status][value]': 'sent' });
+    assert.equal((await operator.goto('/ops/notification-deliveries?' + sentFilter)).status(), 200);
+    await operator.getByRole('row').filter({ hasText: '付款已確認' }).filter({ hasText: '已模擬投遞' }).first().waitFor();
     await operator.goto('/ops/reports');
     await operator.getByLabel('通路', { exact: true }).selectOption('pos');
     await operator.getByRole('button', { name: '套用報表篩選' }).click();
