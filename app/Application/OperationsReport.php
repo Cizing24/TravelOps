@@ -30,8 +30,16 @@ final class OperationsReport
         if ($start->addDays(92)->lt($end)) {
             throw new RuleViolation('report_range', '報表日期範圍最多 92 天。', 422);
         }
-        $start = $start->utc();
-        $end = $end->utc();
+
+        return DB::transaction(fn (): array => $this->calculate($filters, $start->utc(), $end->utc()));
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function calculate(array $filters, CarbonImmutable $start, CarbonImmutable $end): array
+    {
         $orderFacts = DB::table('orders as o')->join('order_items as i', 'i.order_id', '=', 'o.id')
             ->when($filters['channel'] ?? null, fn (Builder $q, string $channel) => $q->where('o.source_channel', $channel))
             ->when($filters['store'] ?? null, fn (Builder $q, mixed $id) => $q->where('o.store_id', $id))

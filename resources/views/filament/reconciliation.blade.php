@@ -2,9 +2,15 @@
     <x-filament::section>
         <form wire:submit="reconcile" class="flex flex-wrap items-end gap-4">
             <div>
-                <label class="block" for="recon-day">對帳日（臺灣時間）</label>
+                <label class="block" for="recon-day">對帳起日（臺灣時間）</label>
                 <input id="recon-day" type="date" wire:model.live="day" required>
+                @error('from') <span role="alert">{{ $message }}</span> @enderror
                 @error('day') <span role="alert">{{ $message }}</span> @enderror
+            </div>
+            <div>
+                <label class="block" for="recon-until">對帳迄日（選填）</label>
+                <input id="recon-until" type="date" wire:model.live="until">
+                @error('to') <span role="alert">{{ $message }}</span> @enderror
             </div>
             <div>
                 <label class="block" for="recon-supplier">供應商</label>
@@ -39,7 +45,7 @@
             @forelse($findings as $finding)
                 <article class="rounded-lg border border-gray-300 p-4" wire:key="finding-{{ $finding->id }}">
                     <h2 class="font-semibold">{{ __('status.'.$finding->kind) }} · {{ __('status.'.$finding->severity) }}</h2>
-                    <p>{{ __('status.'.$finding->source) }} · {{ __('status.'.$finding->status) }}</p>
+                    <p>{{ $finding->day }} · {{ __('status.'.$finding->source) }} · {{ __('status.'.$finding->status) }}</p>
                     <p class="break-all">追蹤編號 {{ $finding->correlation_id }}</p>
                     <a class="break-all underline" href="{{ url($finding->source === 'refund' ? '/ops/refunds' : '/ops/orders').'?search='.urlencode($finding->order_reference) }}">查詢{{ $finding->source === 'refund' ? '退款' : '訂單' }} {{ $finding->order_reference }}</a>
                     <p>內部 {{ $finding->evidence['internal_status'] ?? '無紀錄' }} / {{ $finding->evidence['internal_value'] ?? '—' }}</p>
@@ -53,6 +59,7 @@
                         </form>
                     @elseif($finding->reason)
                         <p>處理原因 {{ $finding->reason }}</p>
+                        <p>處理人 {{ $finding->reviewer?->name ?? '—' }} · <x-time :value="$finding->reviewed_at"/></p>
                     @endif
                 </article>
             @empty

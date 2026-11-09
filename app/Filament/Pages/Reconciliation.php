@@ -10,6 +10,7 @@ use App\Models\Supplier;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 final class Reconciliation extends Page
@@ -21,6 +22,8 @@ final class Reconciliation extends Page
     protected static ?string $title = '交易對帳';
 
     public string $day = '';
+
+    public string $until = '';
 
     public string $supplier = '';
 
@@ -48,8 +51,9 @@ final class Reconciliation extends Page
     {
         Gate::authorize('operate');
         try {
-            $run = $reconcile->run($this->day, ctype_digit($this->supplier) ? (int) $this->supplier : null, auth()->user());
-            Notification::make()->title('對帳完成，共 '.$run->anomalies.' 筆差異')->success()->send();
+            $supplier = ctype_digit($this->supplier) ? (int) $this->supplier : null;
+            $runs = $reconcile->runRange($this->day, $this->until ?: $this->day, $supplier, auth()->user());
+            Notification::make()->title('對帳完成，共 '.collect($runs)->sum('anomalies').' 筆差異')->success()->send();
         } catch (RuleViolation $error) {
             Notification::make()->title($error->getMessage())->danger()->send();
         }
@@ -76,12 +80,16 @@ final class Reconciliation extends Page
     protected function getViewData(): array
     {
         Gate::authorize('operate');
+        $range = [$this->day, $this->until ?: $this->day];
+        if (Validator::make($range, ['*' => 'date_format:Y-m-d'])->fails()) {
+            $range = [now('Asia/Taipei')->toDateString(), now('Asia/Taipei')->toDateString()];
+        }
 
         return [
             'suppliers' => Supplier::orderBy('name')->get(),
-            'runs' => ReconciliationRun::where('day', $this->day)->when($this->supplier,
+            'runs' => ReconciliationRun::whereBetween('day', $range)->when($this->supplier,
                 fn ($query, $id) => $query->where('supplier_id', $id))->latest('id')->limit(10)->get(),
-            'findings' => ReconciliationFinding::where('day', $this->day)->when($this->supplier,
+            'findings' => ReconciliationFinding::with('reviewer')->whereBetween('day', $range)->when($this->supplier,
                 fn ($query, $id) => $query->where('supplier_id', $id))->when($this->reference,
                     fn ($query, $reference) => $query->where('order_reference', $reference))
                 ->orderByRaw("status <> 'open'")->latest('id')->limit(100)->get(),

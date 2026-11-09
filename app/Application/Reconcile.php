@@ -16,6 +16,26 @@ use Throwable;
 
 final class Reconcile
 {
+    /** @return list<ReconciliationRun> */
+    public function runRange(string $from, string $to, ?int $supplier, User $actor): array
+    {
+        Gate::forUser($actor)->authorize('operate');
+        Validator::validate(['from' => $from, 'to' => $to], [
+            'from' => 'required|date_format:Y-m-d', 'to' => 'required|date_format:Y-m-d|after_or_equal:from',
+        ]);
+        $start = CarbonImmutable::parse($from, 'Asia/Taipei')->startOfDay();
+        $end = CarbonImmutable::parse($to, 'Asia/Taipei')->startOfDay();
+        if ($start->addDays(30)->lt($end)) {
+            throw new RuleViolation('reconciliation_range', '一次最多對帳 31 個臺灣營業日。', 422);
+        }
+        $runs = [];
+        for ($day = $start; $day->lte($end); $day = $day->addDay()) {
+            $runs[] = $this->run($day->toDateString(), $supplier, $actor);
+        }
+
+        return $runs;
+    }
+
     public function run(string $day, ?int $supplierId, ?User $actor): ReconciliationRun
     {
         if ($actor !== null) {
@@ -77,6 +97,7 @@ final class Reconcile
                 ->limit(5001)->get()->keyBy('request_key');
             $remote = (clone $externalQuery)->where('s.created_at', '>=', $start)->where('s.created_at', '<', $end)
                 ->limit(5001)->get()->keyBy('request_key');
+            // shortcut: compare up to 5,000 facts per day and source, paginate the ledger for larger volumes.
             if ($local->count() > 5000 || $remote->count() > 5000) {
                 throw new RuleViolation('too_many_records', '單日交易超過展示對帳上限，請縮小供應商範圍。');
             }
@@ -114,7 +135,11 @@ final class Reconcile
                 $finding->fill([
                     'reconciliation_run_id' => $run->id, 'source' => $source, 'kind' => $kind, 'day' => $day,
                     'order_reference' => $reference, 'correlation_id' => $key, 'supplier_id' => $fact->supplier_id,
-                    'severity' => $kind === 'aged_pending' ? 'warning' : 'high',
+                    'severity' => match (true) {
+                        $kind === 'aged_pending' => 'warning',
+                        $kind === 'status_mismatch' && $before->result === 'pending' => 'info',
+                        default => 'high',
+                    },
                     'evidence' => [
                         'internal_status' => $before->result ?? null, 'external_status' => $remoteStatus,
                         'internal_value' => $before->quantity ?? null, 'external_value' => $after->quantity ?? null,

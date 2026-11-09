@@ -51,7 +51,8 @@ final class ReconciliationTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'reconciliation.reviewed', 'user_id' => $operator->id]);
 
         $statement->update(['quantity' => 1]);
-        $service->run($day, $product->supplier_id, $operator);
+        $runs = $service->runRange(now('Asia/Taipei')->subDay()->toDateString(), $day, $product->supplier_id, $operator);
+        self::assertCount(2, $runs);
         $this->assertDatabaseHas('reconciliation_findings', ['kind' => 'amount_or_quantity', 'status' => 'resolved']);
         $this->assertDatabaseHas('reconciliation_findings', ['kind' => 'remote_only', 'status' => 'reviewed']);
         $this->assertDatabaseCount('tickets', 1);

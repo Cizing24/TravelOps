@@ -15,7 +15,7 @@ return [
     'cash' => '現金', 'mock_card' => '模擬卡片', 'mock_online' => '線上模擬付款',
     'reservation' => '預留', 'sale' => '出售', 'release' => '釋放', 'refund' => '退款回補', 'adjustment' => '庫存調整',
     'running' => '執行中', 'open' => '待處理', 'resolved' => '差異已收斂', 'reviewed' => '人工處理',
-    'warning' => '需注意', 'high' => '高風險', 'supplier' => '供應商', 'payment' => '付款',
+    'info' => '資訊', 'warning' => '需注意', 'high' => '高風險', 'supplier' => '供應商', 'payment' => '付款',
     'duplicate' => '外部交易重複', 'remote_only' => '外部有紀錄但內部無紀錄',
     'missing_remote' => '外部缺少紀錄', 'aged_pending' => '等待時間過長',
     'amount_or_quantity' => '金額或數量不符', 'status_mismatch' => '狀態不一致',
