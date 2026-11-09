@@ -1,5 +1,9 @@
 <x-layout title="票券詳情">
-    <a class="muted underline" href="{{ route('tickets.index') }}">← 我的票券</a>
+    @if($ticket->order?->store_id)
+        <a class="muted underline" href="{{ route('pos.show', [$ticket->order->store_id, $ticket->order->reference]) }}">← 門市銷售明細</a>
+    @else
+        <a class="muted underline" href="{{ route('tickets.index') }}">← 我的票券</a>
+    @endif
     <h1 class="my-4">{{ $ticket->order?->item?->name }}</h1>
     <div class="grid gap-4 md:grid-cols-[2fr_1fr]">
         <section class="card">

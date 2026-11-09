@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Application\CatalogAdmin;
 use App\Filament\OperationsResource;
 use App\Filament\Pages\ListUser;
+use App\Models\Store;
 use App\Models\User;
 use App\Models\Venue;
 use Filament\Actions\Action;
@@ -32,6 +33,7 @@ final class UserResource extends OperationsResource
             TextColumn::make('email')->label('Email')->searchable(),
             self::status('role', '角色'),
             TextColumn::make('venues.name')->label('授權場館')->listWithLineBreaks()->limitList(3),
+            TextColumn::make('stores.name')->label('授權門市')->listWithLineBreaks()->limitList(3),
         ])->defaultSort('id', 'desc')->recordActions([
             self::editor(true),
         ]);
@@ -39,7 +41,8 @@ final class UserResource extends OperationsResource
 
     public static function editor(bool $editing): Action
     {
-        $roles = ['customer' => '旅客', 'merchant' => '場館人員', 'operator' => '營運人員', 'admin' => '管理員'];
+        $roles = ['customer' => '旅客', 'merchant' => '場館人員', 'operator' => '營運人員', 'admin' => '管理員',
+            'pos_clerk' => '門市人員', 'pos_supervisor' => '門市主管'];
 
         return self::guardedAction(Action::make($editing ? 'edit' : 'create')->label($editing ? '編輯' : '新增帳號')
             ->visible(fn (?User $record) => $record === null || $record->id !== auth()->id())
@@ -51,8 +54,12 @@ final class UserResource extends OperationsResource
                 Select::make('role')->label('角色')->options($roles)->required()->in(array_keys($roles)),
                 Select::make('venue_ids')->label('場館授權（限場館人員）')->multiple()
                     ->options(fn () => Venue::orderBy('name')->pluck('name', 'id'))->searchable(),
+                Select::make('store_ids')->label('門市授權（限 POS 角色）')->multiple()
+                    ->options(fn () => Store::orderBy('name')->pluck('name', 'id'))->searchable(),
             ])->fillForm(fn (?User $record) => $record === null ? [] :
-                $record->only(['name', 'email', 'role']) + ['venue_ids' => $record->venues()->allRelatedIds()->all()]),
+                $record->only(['name', 'email', 'role']) + [
+                    'venue_ids' => $record->venues()->allRelatedIds()->all(), 'store_ids' => $record->stores()->allRelatedIds()->all(),
+                ]),
             fn (array $data, ?User $record) => app(CatalogAdmin::class)->user(auth()->user(), $data, $record));
     }
 

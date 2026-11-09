@@ -9,6 +9,11 @@ final class TicketPolicy
 {
     public function view(User $user, Ticket $ticket): bool
     {
-        return $user->role === 'customer' && $user->id === $ticket->order?->user_id;
+        $order = $ticket->order;
+        $store = $order?->store;
+
+        return $store === null
+            ? $user->role === 'customer' && $order?->source_channel === 'online' && $user->id === $order->user_id
+            : $user->staffsStore($store);
     }
 }

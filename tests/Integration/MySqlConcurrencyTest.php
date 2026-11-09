@@ -7,6 +7,7 @@ use App\Infrastructure\MockGateway;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Redemption;
+use App\Models\Store;
 use App\Models\User;
 use App\Models\Venue;
 use Closure;
@@ -77,6 +78,26 @@ final class MySqlConcurrencyTest extends TestCase
             self::assertSame('23000', $error->errorInfo[0]);
         }
         $this->assertDatabaseCount('redemptions', 1);
+    }
+
+    public function test_online_and_pos_contend_for_the_same_last_unit(): void
+    {
+        $product = Product::factory()->stocked(1)->create();
+        $buyer = User::factory()->create();
+        $clerk = User::factory()->create(['role' => 'pos_clerk']);
+        $store = Store::create(['name' => '灣岸測試門市']);
+        $clerk->stores()->attach($store);
+
+        $result = $this->race('products', $product->id, [
+            ['checkout', $product->id, $buyer->id],
+            ['pos', $product->id, $clerk->id, $store->id],
+        ]);
+
+        self::assertContains('sold_out', $result);
+        self::assertCount(1, array_intersect($result, ['pending_payment', 'paid']));
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseHas('inventory_balances', ['product_id' => $product->id, 'available' => 0]);
+        $this->assertDatabaseHas('inventory_movements', ['product_id' => $product->id, 'kind' => 'reservation', 'delta' => -1]);
     }
 
     public function test_payment_and_expiry_contend_without_releasing_paid_stock(): void

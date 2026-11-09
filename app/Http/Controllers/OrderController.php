@@ -22,7 +22,7 @@ final class OrderController
         Gate::authorize('create', Order::class);
 
         return view('orders.index', [
-            'orders' => Order::where('user_id', $request->user()?->id)->with('item')->latest('id')->paginate(15),
+            'orders' => Order::where('user_id', $request->user()?->id)->where('source_channel', 'online')->with('item')->latest('id')->paginate(15),
         ]);
     }
 

@@ -18,7 +18,8 @@ final class RefundOrder
 
     public function request(User $actor, Order $order): Refund
     {
-        if (! $actor->operates()) {
+        $store = $order->store;
+        if (! $actor->operates() && ! ($store !== null && $actor->role === 'pos_supervisor' && $actor->staffsStore($store))) {
             Gate::forUser($actor)->authorize('view', $order);
         }
 
@@ -62,11 +63,16 @@ final class RefundOrder
                 return $locked;
             }
 
+            $issuance = $order->issuance()->first();
+            $lastResult = $issuance?->history()->orderByDesc('number')->first()?->result;
+            if ($issuance?->lease_token !== null || in_array($lastResult, ['pending', 'unknown'], true)) {
+                throw new RuleViolation('issuance_in_flight', '供應商開券結果尚未確認，請稍後重試退款。');
+            }
             if (! OrderState::captured($order->status)
                 || $order->payment()->where('status', 'succeeded')->update(['status' => 'refunded']) !== 1) {
                 throw new RuleViolation('refund_unavailable', '訂單目前無法退款。');
             }
-            $this->checkout->releaseInventory($order, 'sold', 'returned');
+            $this->checkout->releaseInventory($order, 'sold', 'returned', $actor->id);
             $order->issuance()->whereIn('status', ['pending', 'retryable_failed', 'permanently_failed'])
                 ->update(['status' => 'cancelled', 'queued_until' => null]);
             TicketEntitlement::whereIn('ticket_id', $order->tickets()->select('tickets.id'))->update(['status' => 'revoked']);

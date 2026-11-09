@@ -38,6 +38,22 @@ final class User extends Authenticatable implements FilamentUser
         return $this->role === 'admin';
     }
 
+    public function staffsPos(): bool
+    {
+        return in_array($this->role, ['pos_clerk', 'pos_supervisor'], true);
+    }
+
+    public function staffsStore(Store $store): bool
+    {
+        return $this->staffsPos() && $this->stores()->whereKey($store->id)->exists();
+    }
+
+    /** @return BelongsToMany<Store, $this> */
+    public function stores(): BelongsToMany
+    {
+        return $this->belongsToMany(Store::class, 'store_users');
+    }
+
     /** @return BelongsToMany<Venue, $this> */
     public function venues(): BelongsToMany
     {

@@ -101,8 +101,42 @@ try {
     await customer.goto(refundedTicket);
     await customer.getByText('已撤銷', { exact: true }).first().waitFor();
     assert.equal(await customer.getByRole('img', { name: '場館核銷 QR Code' }).count(), 0);
+    console.log('PASS Chrome operator refund confirmation and revoked QR');
+
+    const asyncUrl = await buy(customer, 'island-craft', 'duplicate');
+    assert.match(await ticket(customer), /^[a-f0-9]{48}$/);
+    await customer.goto(asyncUrl);
+    assert.equal(await customer.getByRole('link', { name: /查看票券/ }).count(), 1);
+    await operator.goto('/ops/outbox-events');
+    const issuance = operator.getByRole('row').filter({ hasText: asyncUrl.split('/').pop() });
+    await issuance.getByText('島岸合作票務', { exact: true }).waitFor();
+    await issuance.getByText('成功', { exact: true }).waitFor();
+    console.log('PASS Chrome Journey F synchronous and asynchronous suppliers');
+
+    const clerk = await open('pos-a', { width: 390, height: 844 });
+    await clerk.getByRole('link', { name: '灣岸展示門市', exact: true }).click();
+    const storePath = new URL(clerk.url()).pathname;
+    assert.ok(await clerk.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    const productId = await clerk.locator('#product option').filter({ hasText: '潮線水族館單館票' }).getAttribute('value');
+    await clerk.getByLabel('商品與目前可售量').selectOption(productId);
+    await clerk.getByRole('button', { name: '確認門市銷售' }).click();
+    await clerk.getByRole('heading', { name: '門市銷售明細' }).waitFor();
+    await clerk.getByRole('link', { name: '重新整理開券結果' }).or(clerk.getByRole('link', { name: '查看憑證 1' })).waitFor();
+    const saleUrl = clerk.url();
+    const deadline = Date.now() + 45_000;
+    while (await clerk.getByRole('link', { name: '查看憑證 1' }).count() === 0 && Date.now() < deadline) {
+        await clerk.waitForTimeout(1000);
+        await clerk.reload();
+    }
+    await clerk.getByRole('link', { name: '查看憑證 1' }).click();
+    await clerk.getByRole('img', { name: '場館核銷 QR Code' }).waitFor();
+    const otherClerk = await open('pos-b');
+    assert.equal((await otherClerk.goto(saleUrl)).status(), 403);
+    const supervisor = await open('pos-supervisor-a');
+    assert.equal((await supervisor.goto(storePath + '/closing')).status(), 200);
+    await supervisor.getByText('現金', { exact: true }).waitFor();
+    console.log('PASS Chrome Journey G POS sale, ticket, store isolation and daily closing');
     assert.deepEqual(errors, []);
-    console.log('PASS Chrome operator refund confirmation, revoked QR, no browser page errors');
 } finally {
     await browser.close();
 }

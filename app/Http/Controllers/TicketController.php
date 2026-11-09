@@ -19,7 +19,7 @@ final class TicketController
         Gate::authorize('create', Order::class);
 
         return view('tickets.index', [
-            'tickets' => Ticket::whereHas('order', fn ($query) => $query->where('user_id', $request->user()?->id))
+            'tickets' => Ticket::whereHas('order', fn ($query) => $query->where('user_id', $request->user()?->id)->where('source_channel', 'online'))
                 ->with('order.item')->withCount(['entitlements', 'entitlements as redeemed_count' => fn ($query) => $query->where('status', 'redeemed')])
                 ->latest('id')->paginate(15),
         ]);

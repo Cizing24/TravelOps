@@ -2,10 +2,12 @@
 
 use App\Application\Checkout;
 use App\Application\PaymentWebhook;
+use App\Application\PointOfSale;
 use App\Application\Redeem;
 use App\Domain\RuleViolation;
 use App\Infrastructure\MockGateway;
 use App\Models\Order;
+use App\Models\Store;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
@@ -24,6 +26,7 @@ if (! $app->environment('testing') || DB::connection()->getDatabaseName() !== 't
 try {
     $result = match ($operation) {
         'checkout' => app(Checkout::class)->place(User::findOrFail($argv[3]), (int) $id, 1, (string) Str::uuid())->status,
+        'pos' => app(PointOfSale::class)->sell(User::findOrFail($argv[3]), Store::findOrFail($argv[4]), (int) $id, 1, (string) Str::uuid(), 'cash')->status,
         'redeem' => app(Redeem::class)->ticket(User::findOrFail($argv[3]), (int) $argv[4], $argv[5])->id > 0 ? 'redeemed' : 'invalid',
         'expire' => (function () use ($id, $argv): string {
             CarbonImmutable::setTestNow($argv[3]);

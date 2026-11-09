@@ -4,7 +4,9 @@ namespace App\Application;
 
 use App\Domain\RuleViolation;
 use App\Models\InventoryBalance;
+use App\Models\InventoryMovement;
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Venue;
@@ -47,23 +49,34 @@ final class CatalogAdmin
         }, 5);
     }
 
-    public function adjustStock(User $actor, Product $product, int $delta): void
+    public function adjustStock(User $actor, Product $product, int $delta, string $reason): void
     {
         Gate::forUser($actor)->authorize('administer');
-        DB::transaction(function () use ($actor, $product, $delta): void {
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw new RuleViolation('invalid_reason', '請輸入 1 至 500 字的庫存調整原因。', 422);
+        }
+        DB::transaction(function () use ($actor, $product, $delta, $reason): void {
             Product::query()->lockForUpdate()->findOrFail($product->id);
             $stock = InventoryBalance::where('product_id', $product->id)->lockForUpdate()->firstOrFail();
             $available = $stock->available + $delta;
             if ($delta === 0 || $available < 0 || $available > 1000000) {
                 throw new RuleViolation('invalid_stock', '調整量不可為零，且可售庫存須介於 0 到 1,000,000。', 422);
             }
+            $before = $stock->available;
             $stock->update(['available' => $available]);
-            Audit::record('catalog.stock_adjusted', $actor->id, null, ['product_id' => $product->id, 'delta' => $delta]);
+            InventoryMovement::create([
+                'product_id' => $product->id, 'user_id' => $actor->id, 'kind' => 'adjustment',
+                'delta' => $delta, 'reason' => $reason,
+            ]);
+            Audit::record('catalog.stock_adjusted', $actor->id, null, [
+                'product_id' => $product->id, 'delta' => $delta, 'reason' => $reason, 'before' => $before, 'after' => $available,
+            ]);
         }, 5);
     }
 
     /** @param array<string, mixed> $data */
-    public function save(User $actor, Supplier|Venue $record, array $data): void
+    public function save(User $actor, Supplier|Venue|Store $record, array $data): void
     {
         Gate::forUser($actor)->authorize('administer');
         DB::transaction(function () use ($actor, $record, $data): void {
@@ -88,9 +101,11 @@ final class CatalogAdmin
                     $fail('密碼長度不得超過 72 bytes。');
                 }
             }],
-            'role' => 'required|in:admin,operator,merchant,customer',
+            'role' => 'required|in:admin,operator,merchant,customer,pos_clerk,pos_supervisor',
             'venue_ids' => 'nullable|array',
             'venue_ids.*' => 'integer|distinct|exists:venues,id',
+            'store_ids' => 'nullable|array',
+            'store_ids.*' => 'integer|distinct|exists:stores,id',
         ]);
 
         DB::transaction(function () use ($actor, $data, $record): void {
@@ -101,6 +116,7 @@ final class CatalogAdmin
             }
             $user->save();
             $user->venues()->sync($user->role === 'merchant' ? ($data['venue_ids'] ?? []) : []);
+            $user->stores()->sync($user->staffsPos() ? ($data['store_ids'] ?? []) : []);
             Audit::record('access.user_saved', $actor->id, null, ['target_user_id' => $user->id, 'role' => $user->role]);
         }, 5);
     }

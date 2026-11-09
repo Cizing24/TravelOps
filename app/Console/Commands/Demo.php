@@ -7,8 +7,8 @@ use App\Application\Issuance;
 use App\Application\PaymentWebhook;
 use App\Application\RefundOrder;
 use App\Infrastructure\MockGateway;
-use App\Models\Order;
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\User;
 use App\Models\Venue;
 use Database\Seeders\DatabaseSeeder;
@@ -39,6 +39,9 @@ final class Demo extends Command
             'merchant-b' => ['場館 B', 'merchant', DatabaseSeeder::VENUES[1]],
             'merchant-c' => ['場館 C', 'merchant', DatabaseSeeder::VENUES[2]],
             'merchant-d' => ['場館 D', 'merchant', DatabaseSeeder::VENUES[3]],
+            'pos-a' => ['門市 A', 'pos_clerk', null],
+            'pos-supervisor-a' => ['門市 A 主管', 'pos_supervisor', null],
+            'pos-b' => ['門市 B', 'pos_clerk', null],
         ];
         $users = [];
         $credentials = [];
@@ -52,6 +55,10 @@ final class Demo extends Command
                     $user->venues()->sync([Venue::where('name', $venue)->firstOrFail()->id]);
                 }
                 $credentials[] = [$email, $password];
+            }
+            if ($user->staffsPos()) {
+                $store = Store::firstOrCreate(['name' => $alias === 'pos-b' ? '港城展示門市' : '灣岸展示門市']);
+                $user->stores()->syncWithoutDetaching([$store->id]);
             }
             $users[$alias] = $user;
         }
@@ -72,24 +79,21 @@ final class Demo extends Command
 
     private function example(User $customer, User $operator, int $index, string $slug, string $outcome): void
     {
-        DB::transaction(function () use ($customer, $operator, $index, $slug, $outcome): void {
-            User::query()->lockForUpdate()->findOrFail($customer->id);
-            $key = sprintf('0dba0000-5070-4000-8000-%012d', $index);
-            if (Order::where('user_id', $customer->id)->where('idempotency_key', $key)->exists()) {
-                return;
-            }
-            $product = Product::where('slug', $slug)->firstOrFail();
-            $order = app(Checkout::class)->place($customer, $product->id, 1, $key);
+        $key = sprintf('0dba0000-5070-4000-8000-%012d', $index);
+        $product = Product::where('slug', $slug)->firstOrFail();
+        $order = app(Checkout::class)->place($customer, $product->id, 1, $key);
+        if ($order->status === 'pending_payment' && $order->payment?->status === 'initiated') {
             $status = $outcome === 'payment_failed' ? 'failed' : 'succeeded';
             $event = app(MockGateway::class)->event($order, $status);
             app(PaymentWebhook::class)->receive($event['body'], $event['signature']);
-            if ($status === 'succeeded') {
-                app(Issuance::class)->process($order->issuance()->firstOrFail()->id);
-            }
-            if ($outcome === 'refunded') {
-                $refunds = app(RefundOrder::class);
-                $refunds->review($operator, $refunds->request($customer, $order), true);
-            }
-        }, 5);
+        }
+        $issuance = $order->issuance()->first();
+        if ($issuance !== null) {
+            app(Issuance::class)->process($issuance->id);
+        }
+        if ($outcome === 'refunded' && $order->refresh()->status === 'fulfilled') {
+            $refunds = app(RefundOrder::class);
+            $refunds->review($operator, $refunds->request($customer, $order), true);
+        }
     }
 }

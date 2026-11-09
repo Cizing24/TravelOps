@@ -21,6 +21,8 @@
                         <a href="{{ route('tickets.index') }}">我的票券</a>
                     @elseif(auth()->user()->role === 'merchant')
                         <a href="{{ route('merchant.index') }}">場館核銷</a>
+                    @elseif(auth()->user()->staffsPos())
+                        <a href="{{ route('pos.stores') }}">門市 POS</a>
                     @else
                         <a href="{{ url('/ops') }}">營運後台</a>
                     @endif

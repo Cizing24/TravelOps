@@ -45,7 +45,7 @@ final class OperationsTest extends TestCase
         self::assertSame([$venue->id], $product->venues()->allRelatedIds()->all());
         self::assertSame(5, $product->inventory()->firstOrFail()->available);
         Livewire::test(ListProduct::class)
-            ->callAction(TestAction::make('stock')->table($product), data: ['delta' => -2])
+            ->callAction(TestAction::make('stock')->table($product), data: ['delta' => -2, 'reason' => '測試盤點差異'])
             ->assertHasNoActionErrors();
         $this->assertDatabaseHas('inventory_balances', ['product_id' => $product->id, 'available' => 3]);
         Livewire::test(ListUser::class)->callAction('create', data: [
@@ -72,7 +72,7 @@ final class OperationsTest extends TestCase
         $this->actingAs($operator);
         $product->supplier->update(['scenario' => 'success']);
         Livewire::test(ListOutboxEvent::class)
-            ->callAction(TestAction::make('retry')->table($event))
+            ->callAction(TestAction::make('retry')->table($event), ['reason' => '模擬供應商已恢復'])
             ->assertHasNoActionErrors();
         self::assertSame('pending', $event->refresh()->status);
         $this->issue($order);

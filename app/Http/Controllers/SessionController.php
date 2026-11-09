@@ -20,6 +20,7 @@ final class SessionController
         return redirect()->intended(match ($request->user()?->role) {
             'operator', 'admin' => '/ops',
             'merchant' => route('merchant.index'),
+            'pos_clerk', 'pos_supervisor' => route('pos.stores'),
             default => route('orders.index'),
         });
     }
