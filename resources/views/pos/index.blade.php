@@ -7,12 +7,12 @@
             <form method="post" action="{{ route('pos.sell', $store) }}" class="mt-4 grid gap-3">
                 @csrf
                 <input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', $key) }}">
-                <label for="product">商品與目前可售量</label>
+                <label for="product">商品、單價與可售量</label>
                 <select id="product" name="product_id" required>
                     <option value="">請選擇商品</option>
                     @foreach($products as $product)
                         <option value="{{ $product->id }}" @selected(old('product_id') == $product->id) @disabled(($product->inventory?->available ?? 0) < 1)>
-                            {{ $product->name }}（{{ $product->inventory?->available ?? 0 }} 張）
+                            {{ $product->name }} · {{ \App\Domain\Money::twd($product->price) }}／張 · 可售 {{ $product->inventory?->available ?? 0 }} 張
                         </option>
                     @endforeach
                 </select>
