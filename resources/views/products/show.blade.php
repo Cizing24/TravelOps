@@ -11,7 +11,7 @@
         </article>
         <aside class="card self-start">
             <h2>購買票券</h2>
-            <p class="mt-2 text-2xl font-bold">{{ \App\Domain\Money::twd($product->price) }}</p>
+            <p class="mt-2 text-2xl font-bold">{{ \App\Domain\Money::twd($product->price) }} <span class="muted text-sm font-normal">／張</span></p>
             <p class="muted mb-4">剩餘 {{ $product->inventory?->available ?? 0 }} 張</p>
             @if(($product->inventory?->available ?? 0) < 1)
                 <p class="badge">已售完</p>
@@ -24,7 +24,12 @@
                     <input id="quantity" name="quantity" type="number" min="1" max="{{ min(10, $product->inventory->available) }}" value="{{ old('quantity', 1) }}" required>
                     <button class="button mt-4 w-full" type="submit">建立訂單</button>
                 </form>
-                <p class="muted mt-3 text-sm">下單後保留庫存 15 分鐘。</p>
+                <p class="muted mt-3 text-sm">
+                    下單後保留庫存 15 分鐘。
+                    @if(app(\App\Infrastructure\MockGateway::class)->enabled())
+                        請在訂單頁選擇模擬付款情境。
+                    @endif
+                </p>
             @elseif(!auth()->check())
                 <a class="button w-full" href="{{ route('login') }}">登入以購買</a>
             @else

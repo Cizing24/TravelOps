@@ -33,6 +33,7 @@
             <x-filament::button type="submit">套用報表篩選</x-filament::button>
             <x-filament::button tag="a" color="gray" :href="route('reports.csv', $filters)">匯出 CSV</x-filament::button>
         </form>
+        <p class="mt-3 text-sm">變更篩選條件後，先套用再匯出。CSV 金額以新臺幣分為單位，100 分為 1 元。</p>
     </x-filament::section>
 
     <x-filament::section heading="營運摘要">

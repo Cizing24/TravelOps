@@ -124,8 +124,9 @@ try {
     await clerk.getByRole('link', { name: '灣岸展示門市', exact: true }).click();
     const storePath = new URL(clerk.url()).pathname;
     assert.ok(await clerk.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    const productId = await clerk.locator('#product option').filter({ hasText: '潮線水族館單館票' }).getAttribute('value');
-    await clerk.getByLabel('商品與目前可售量').selectOption(productId);
+    const saleOption = clerk.locator('#product option').filter({ hasText: '潮線水族館單館票' });
+    assert.match(await saleOption.textContent(), /NT\$ 320／張 · 可售 \d+ 張/);
+    await clerk.getByLabel('商品、單價與可售量').selectOption(await saleOption.getAttribute('value'));
     await clerk.getByRole('button', { name: '確認門市銷售' }).click();
     await clerk.getByRole('heading', { name: '門市銷售明細' }).waitFor();
     await clerk.getByRole('link', { name: '重新整理開券結果' }).or(clerk.getByRole('link', { name: '查看憑證 1' })).waitFor();
