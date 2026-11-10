@@ -2,6 +2,8 @@
 
 TravelOps 是獨立作品，以合成交易展示旅遊票券從購買、履約到營運查核的流程。旅客在線上購買票券，POS 店員在授權門市售票，場館人員核銷自己的場館權益，營運人員追查開券、退款、庫存與帳冊差異。Mock 供應商提供同步確認或非同步回呼。
 
+V3 把三種使用情境分開設計。旅客依場館與效期選票，並沿訂單進度找到票券。店員先核對銷售摘要，確認後依同一筆交易的明細查閱開券。營運人員在 Filament 從待處理的開券異常進入紀錄，並排檢視內外部帳冊。結帳預估僅用於操作回饋，伺服器仍負責計價與鎖定共用庫存。各角色的 UX 證據見 [V3 驗收](../reports/V3_UX_DOCKER_VALIDATION.md)。
+
 Laravel 模組化單體用 Blade、Livewire 與 Filament 提供操作介面。MySQL 儲存訂單、付款、庫存、票券權益和 Outbox。Redis Queue 執行開券、退款與通知工作，Scheduler 掃描待處理工作以恢復派送。[V2 系統總覽](../architecture/V2_SYSTEM_OVERVIEW.md) · [可靠性 ADR](../decisions/004-v2-operation-reliability.md)
 
 ## 五個工程決策

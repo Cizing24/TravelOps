@@ -5,7 +5,7 @@ return [
     'fulfilled' => '已開券', 'cancelled' => '已取消', 'expired' => '已到期', 'refunded' => '已退款',
     'initiated' => '待確認', 'succeeded' => '成功', 'failed' => '失敗',
     'pending' => '待處理', 'retryable_failed' => '等待重試', 'permanently_failed' => '待人工處理', 'awaiting_callback' => '等待供應商回呼',
-    'active' => '有效', 'revoked' => '已撤銷', 'redeemed' => '已核銷', 'unused' => '可使用',
+    'active' => '有效', 'revoked' => '已撤銷', 'redeemed' => '已核銷', 'unused' => '可使用', 'redemption_paused' => '暫停核銷',
     'requested' => '待審核', 'processed' => '已退款', 'rejected' => '已拒絕',
     'approved' => '已核准', 'submitted' => '退款已提交', 'requires_review' => '需人工確認',
     'held' => '預留中', 'sold' => '已售出', 'released' => '已釋放', 'returned' => '已回補',

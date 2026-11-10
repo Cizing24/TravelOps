@@ -17,6 +17,7 @@ jobs:
           docker version
           docker compose version
           docker compose config --quiet
+          test -f docker/mysql/20-test-db.sql
       - name: Start MySQL, Redis and the app
         run: |
           docker compose up --build -d --wait
@@ -24,6 +25,8 @@ jobs:
           docker compose exec -T app php --version
           docker compose exec -T mysql mysqld --version
           docker compose exec -T redis redis-server --version
+          docker compose exec -T mysql test -f /docker-entrypoint-initdb.d/20-test-db.sql
+          docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -h127.0.0.1 -u"$MYSQL_USER" travelops_test -Nse "SELECT DATABASE();"'
       - name: PHP formatting
         run: docker compose exec -T app php vendor/bin/pint --test
       - name: Static analysis
@@ -55,4 +58,4 @@ jobs:
         run: docker compose logs --tail 100
       - name: Stop test services
         if: always()
-        run: docker compose down -v
+        run: docker compose down

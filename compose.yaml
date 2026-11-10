@@ -18,7 +18,12 @@ services:
       MYSQL_ROOT_PASSWORD: travelops-local-root
     volumes:
       - mysql:/var/lib/mysql
-      - ./docker/mysql/20-test-db.sh:/docker-entrypoint-initdb.d/20-test-db.sh:ro
+      - type: bind
+        source: ./docker/mysql/20-test-db.sql
+        target: /docker-entrypoint-initdb.d/20-test-db.sql
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test: ["CMD-SHELL", "mysql --protocol=tcp -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" \"$$MYSQL_DATABASE\" -Nse 'SELECT 1'"]
       interval: 3s

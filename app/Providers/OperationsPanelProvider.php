@@ -12,6 +12,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Support\Assets\Css;
 use Filament\Support\Colors\Color;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -27,6 +28,8 @@ final class OperationsPanelProvider extends PanelProvider
         return $panel
             ->default()->id('operations')->path('ops')->login()->brandName('TravelOps 營運台')
             ->colors(['primary' => Color::Emerald])
+            ->assets([Css::make('travelops-operations', resource_path('css/operations.css'))
+                ->relativePublicPath('css/filament/travelops-operations.css')])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->pages([Dashboard::class, Reconciliation::class, Reports::class])->widgets([OperationsStats::class])
             ->middleware([

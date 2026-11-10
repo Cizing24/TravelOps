@@ -1,0 +1,30 @@
+.ops-filter {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    align-items: end;
+    gap: 1rem;
+}
+.ops-field { display: grid; min-width: 0; gap: .4rem; font-size: .875rem; }
+.ops-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.ops-help { margin-top: .75rem; font-size: .875rem; }
+.ops-list { display: grid; gap: .9rem; }
+.ops-finding { min-width: 0; border: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 22%, transparent); border-radius: .75rem; padding: 1rem; }
+.ops-finding h3 { font-weight: 700; overflow-wrap: anywhere; }
+.ops-finding a { text-decoration: underline; text-underline-offset: .2em; overflow-wrap: anywhere; }
+.ops-identifier { overflow-wrap: anywhere; }
+.ops-evidence, .ops-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: .75rem;
+    margin-block: .75rem;
+}
+.ops-evidence > div, .ops-metrics > div { padding: .6rem .8rem; border-radius: .4rem; background: color-mix(in srgb, currentColor 5%, transparent); }
+.ops-evidence dt, .ops-metrics dt { font-size: .875rem; }
+.ops-evidence dd, .ops-metrics dd { overflow-wrap: anywhere; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ops-rows > li { padding-block: .6rem; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); overflow-wrap: anywhere; }
+.ops-rows > li:last-child { border-bottom: 0; }
+.ops-reason { width: 100%; min-height: 5rem; padding: .5rem .7rem; }
+.ops-field input:focus-visible, .ops-field select:focus-visible, .ops-reason:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+}

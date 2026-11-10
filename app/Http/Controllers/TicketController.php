@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\RefundOrder;
 use App\Models\Order;
 use App\Models\Ticket;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -28,13 +29,14 @@ final class TicketController
     public function show(Ticket $ticket): View
     {
         Gate::authorize('view', $ticket);
-        $ticket->load(['order.item', 'entitlements.redemption']);
+        $ticket->load(['order.item', 'order.refund', 'entitlements.redemption']);
+        $redemptionPaused = in_array($ticket->order?->refund?->status, RefundOrder::BLOCK_REDEMPTION, true);
         $qr = null;
-        if ($ticket->status === 'active' && ! $ticket->isExpired()) {
+        if ($ticket->status === 'active' && ! $ticket->isExpired() && ! $redemptionPaused) {
             $writer = new Writer(new ImageRenderer(new RendererStyle(216), new SvgImageBackEnd));
             $qr = 'data:image/svg+xml;base64,'.base64_encode($writer->writeString($ticket->code));
         }
 
-        return view('tickets.show', compact('ticket', 'qr'));
+        return view('tickets.show', compact('ticket', 'qr', 'redemptionPaused'));
     }
 }
