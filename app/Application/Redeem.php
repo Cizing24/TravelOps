@@ -39,6 +39,9 @@ final class Redeem
             if ($ticket->status === 'revoked' || $order->status === 'refunded') {
                 throw new RuleViolation('revoked', '票券已撤銷。');
             }
+            if ($order->refund()->whereIn('status', RefundOrder::BLOCK_REDEMPTION)->lockForUpdate()->first() !== null) {
+                throw new RuleViolation('refund_pending', '票券退款處理中，暫停核銷。');
+            }
             if ($entitlement->status === 'redeemed') {
                 throw new RuleViolation('already_redeemed', '此場館權益已核銷。');
             }

@@ -29,8 +29,10 @@ final class SupplierResource extends OperationsResource
     {
         return $table->columns([
             TextColumn::make('name')->label('供應商')->searchable()->sortable(),
+            TextColumn::make('adapter')->label('確認方式')->formatStateUsing(fn (string $state) => MockSupplier::ADAPTERS[$state] ?? $state),
             TextColumn::make('scenario')->label('開券情境')->formatStateUsing(fn (string $state) => MockSupplier::SCENARIOS[$state] ?? $state),
         ])->defaultSort('id', 'desc')->recordActions([
+            Action::make('reconciliation')->label('供應商對帳')->url(fn (Supplier $record): string => url('/ops/reconciliation').'?supplier='.$record->id),
             self::editor(true),
         ]);
     }
@@ -40,8 +42,9 @@ final class SupplierResource extends OperationsResource
         return self::guardedAction(Action::make($editing ? 'edit' : 'create')->label($editing ? '編輯' : '新增供應商')
             ->schema([
                 TextInput::make('name')->label('名稱')->required()->maxLength(160)->unique('suppliers', 'name', ignoreRecord: true),
+                Select::make('adapter')->label('確認方式')->options(MockSupplier::ADAPTERS)->default('synchronous')->required()->in(array_keys(MockSupplier::ADAPTERS)),
                 Select::make('scenario')->label('開券情境')->options(MockSupplier::SCENARIOS)->default('success')->required()->in(array_keys(MockSupplier::SCENARIOS)),
-            ])->fillForm(fn (?Supplier $record) => $record?->only(['name', 'scenario']) ?? ['scenario' => 'success']),
+            ])->fillForm(fn (?Supplier $record) => $record?->only(['name', 'adapter', 'scenario']) ?? ['adapter' => 'synchronous', 'scenario' => 'success']),
             fn (array $data, ?Supplier $record) => app(CatalogAdmin::class)->save(auth()->user(), $record ?? new Supplier, $data));
     }
 

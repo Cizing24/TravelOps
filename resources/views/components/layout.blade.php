@@ -19,10 +19,14 @@
                     @if(auth()->user()->role === 'customer')
                         <a href="{{ route('orders.index') }}">我的訂單</a>
                         <a href="{{ route('tickets.index') }}">我的票券</a>
+                        <a href="{{ route('notifications.index') }}">通知中心</a>
                     @elseif(auth()->user()->role === 'merchant')
                         <a href="{{ route('merchant.index') }}">場館核銷</a>
+                    @elseif(auth()->user()->staffsPos())
+                        <a href="{{ route('pos.stores') }}">門市 POS</a>
                     @else
                         <a href="{{ url('/ops') }}">營運後台</a>
+                        <a href="{{ route('notifications.index') }}">通知中心</a>
                     @endif
                     <form method="post" action="{{ route('logout') }}">@csrf <button type="submit" class="cursor-pointer underline">登出</button></form>
                 @else

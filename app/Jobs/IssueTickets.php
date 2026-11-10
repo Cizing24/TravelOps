@@ -14,7 +14,12 @@ final class IssueTickets implements ShouldQueue
 
     public int $timeout = 30;
 
-    public function __construct(public int $eventId) {}
+    public bool $cancel = false;
+
+    public function __construct(public int $eventId, bool $cancel = false)
+    {
+        $this->cancel = $cancel;
+    }
 
     /** @return list<int> */
     public function backoff(): array
@@ -24,6 +29,10 @@ final class IssueTickets implements ShouldQueue
 
     public function handle(Issuance $issuance): void
     {
-        $issuance->process($this->eventId);
+        if ($this->cancel) {
+            $issuance->cancel($this->eventId);
+        } else {
+            $issuance->process($this->eventId);
+        }
     }
 }

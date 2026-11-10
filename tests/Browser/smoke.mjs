@@ -48,6 +48,11 @@ try {
     await desktop.getByRole('heading', { name: '在售票券' }).waitFor();
     if (screenshots) await desktop.screenshot({ path: screenshots + '/catalog-desktop.png' });
     const customer = await open('customer', { width: 390, height: 844 });
+    await customer.goto('/my/notifications');
+    await customer.getByLabel('模擬 Email', { exact: true }).check();
+    await customer.getByLabel('模擬 LINE', { exact: true }).check();
+    await customer.getByRole('button', { name: '儲存通知偏好' }).click();
+    await customer.getByText('通知偏好已儲存。', { exact: true }).waitFor();
     await customer.goto('/products');
     assert.ok(await customer.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     if (screenshots) await customer.screenshot({ path: screenshots + '/catalog-mobile.png' });
@@ -96,13 +101,80 @@ try {
     await operator.goto('/ops/refunds');
     const row = operator.getByRole('row').filter({ hasText: refundUrl.split('/').pop() });
     await row.getByText('核准模擬退款', { exact: true }).click();
+    await operator.getByLabel('模擬退款情境').selectOption('delayed');
     await operator.getByRole('button', { name: '確認退款', exact: true }).click();
-    await row.getByText('已退款', { exact: true }).waitFor();
+    await row.getByText('待處理', { exact: true }).waitFor({ timeout: 40000 });
+    await row.getByText('已退款', { exact: true }).waitFor({ timeout: 60000 });
     await customer.goto(refundedTicket);
     await customer.getByText('已撤銷', { exact: true }).first().waitFor();
     assert.equal(await customer.getByRole('img', { name: '場館核銷 QR Code' }).count(), 0);
+    console.log('PASS Chrome Journey H pending refund, signed settlement and revoked QR');
+
+    const asyncUrl = await buy(customer, 'island-craft', 'duplicate');
+    assert.match(await ticket(customer), /^[a-f0-9]{48}$/);
+    await customer.goto(asyncUrl);
+    assert.equal(await customer.getByRole('link', { name: /查看票券/ }).count(), 1);
+    await operator.goto('/ops/outbox-events');
+    const issuance = operator.getByRole('row').filter({ hasText: asyncUrl.split('/').pop() });
+    await issuance.getByText('島岸合作票務', { exact: true }).waitFor();
+    await issuance.getByText('成功', { exact: true }).waitFor();
+    console.log('PASS Chrome Journey F synchronous and asynchronous suppliers');
+
+    const clerk = await open('pos-a', { width: 390, height: 844 });
+    await clerk.getByRole('link', { name: '灣岸展示門市', exact: true }).click();
+    const storePath = new URL(clerk.url()).pathname;
+    assert.ok(await clerk.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    const productId = await clerk.locator('#product option').filter({ hasText: '潮線水族館單館票' }).getAttribute('value');
+    await clerk.getByLabel('商品與目前可售量').selectOption(productId);
+    await clerk.getByRole('button', { name: '確認門市銷售' }).click();
+    await clerk.getByRole('heading', { name: '門市銷售明細' }).waitFor();
+    await clerk.getByRole('link', { name: '重新整理開券結果' }).or(clerk.getByRole('link', { name: '查看憑證 1' })).waitFor();
+    const saleUrl = clerk.url();
+    const deadline = Date.now() + 45_000;
+    while (await clerk.getByRole('link', { name: '查看憑證 1' }).count() === 0 && Date.now() < deadline) {
+        await clerk.waitForTimeout(1000);
+        await clerk.reload();
+    }
+    await clerk.getByRole('link', { name: '查看憑證 1' }).click();
+    await clerk.getByRole('img', { name: '場館核銷 QR Code' }).waitFor();
+    const otherClerk = await open('pos-b');
+    assert.equal((await otherClerk.goto(saleUrl)).status(), 403);
+    const supervisor = await open('pos-supervisor-a');
+    assert.equal((await supervisor.goto(storePath + '/closing')).status(), 200);
+    await supervisor.getByText('現金', { exact: true }).waitFor();
+    console.log('PASS Chrome Journey G POS sale, ticket, store isolation and daily closing');
+
+    await operator.goto('/ops/reconciliation');
+    await operator.getByRole('button', { name: '重新取得帳冊並對帳' }).click();
+    const orphan = operator.locator('article').filter({ hasText: '000000000080' });
+    await orphan.getByRole('heading', { name: /外部有紀錄但內部無紀錄/ }).waitFor();
+    await orphan.getByLabel('處理原因').fill('已確認為展示帳冊差異');
+    await orphan.getByRole('button', { name: '標記已處理' }).click();
+    await orphan.getByText('處理原因 已確認為展示帳冊差異', { exact: true }).waitFor();
+    await operator.getByRole('button', { name: '重新取得帳冊並對帳' }).click();
+    await operator.waitForFunction(() => document.querySelectorAll('article').length > 0);
+    assert.equal(await orphan.count(), 1);
+    console.log('PASS Chrome Journey I reconciliation, review reason and rerun');
+
+    await customer.goto('/my/notifications');
+    for (const title of ['付款已確認', '票券已開立', '退款已確認']) {
+        await customer.getByRole('heading', { name: title, exact: true }).first().waitFor();
+    }
+    await customer.getByRole('button', { name: '標記已讀' }).first().click();
+    await customer.getByText(/· 已讀/).first().waitFor();
+    const sentFilter = new URLSearchParams({ 'filters[status][value]': 'sent' });
+    assert.equal((await operator.goto('/ops/notification-deliveries?' + sentFilter)).status(), 200);
+    await operator.getByRole('row').filter({ hasText: '付款已確認' }).filter({ hasText: '已模擬投遞' }).first().waitFor();
+    await operator.goto('/ops/reports');
+    await operator.getByLabel('通路', { exact: true }).selectOption('pos');
+    await operator.getByRole('button', { name: '套用報表篩選' }).click();
+    await operator.getByText('門市 灣岸展示門市 · 1 筆 · NT$ 320', { exact: true }).waitFor();
+    const download = operator.waitForEvent('download');
+    await operator.getByRole('link', { name: '匯出 CSV' }).click();
+    const csv = fs.readFileSync(await (await download).path(), 'utf8');
+    assert.match(csv, /灣岸展示門市,32000,1/);
+    console.log('PASS Chrome Journey J inbox, simulated delivery, filtered report and CSV');
     assert.deepEqual(errors, []);
-    console.log('PASS Chrome operator refund confirmation, revoked QR, no browser page errors');
 } finally {
     await browser.close();
 }

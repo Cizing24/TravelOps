@@ -9,7 +9,7 @@ final class OrderPolicy
 {
     public function view(User $user, Order $order): bool
     {
-        return $user->role === 'customer' && $user->id === $order->user_id;
+        return $user->role === 'customer' && $order->source_channel === 'online' && $user->id === $order->user_id;
     }
 
     public function create(User $user): bool

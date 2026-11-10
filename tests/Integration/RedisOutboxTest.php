@@ -81,6 +81,29 @@ final class RedisOutboxTest extends TestCase
         $this->assertDatabaseCount('outbox_events', 1);
     }
 
+    public function test_async_supplier_confirms_issuance_from_the_redis_worker(): void
+    {
+        Queue::connection('redis')->clear('travelops_test');
+        $product = Product::factory()->stocked()->create();
+        $product->supplier->update(['adapter' => 'webhook']);
+        $order = $this->place($product);
+        $this->pay($order);
+        self::assertSame(1, app(Issuance::class)->relay());
+        $this->worker();
+        self::assertSame('awaiting_callback', $order->issuance()->firstOrFail()->status);
+        $this->assertDatabaseCount('tickets', 0);
+
+        $deadline = microtime(true) + 15;
+        do {
+            usleep(300_000);
+            $this->worker();
+        } while ($order->refresh()->status !== 'fulfilled' && microtime(true) < $deadline);
+
+        self::assertSame('fulfilled', $order->status);
+        $this->assertDatabaseCount('tickets', 1);
+        $this->assertDatabaseHas('webhook_events', ['provider' => 'supplier', 'order_id' => $order->id, 'outcome' => 'succeeded']);
+    }
+
     private function worker(): void
     {
         $worker = new Process(

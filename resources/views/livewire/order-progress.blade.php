@@ -1,5 +1,5 @@
 <div class="mt-6 grid gap-4 md:grid-cols-2"
-    @if(in_array($order->status, ['pending_payment','paid','fulfilling'], true) || $order->refund?->status === 'requested') wire:poll.5s @endif>
+    @if(in_array($order->status, ['pending_payment','paid','fulfilling'], true) || in_array($order->refund?->status, ['requested', ...\App\Application\RefundOrder::BLOCK_REDEMPTION], true)) wire:poll.5s @endif>
     <section class="card">
         <h2>交易進度</h2>
         <dl class="data-list mt-2" aria-live="polite">

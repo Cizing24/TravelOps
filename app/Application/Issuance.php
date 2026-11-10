@@ -9,14 +9,16 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OutboxEvent;
 use App\Models\User;
+use App\Models\WebhookEvent;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Throwable;
 
 final class Issuance
 {
-    private const READY = ['pending', 'retryable_failed'];
+    private const READY = ['pending', 'retryable_failed', 'awaiting_callback'];
 
     public function __construct(private SupplierProvider $supplier) {}
 
@@ -51,58 +53,200 @@ final class Issuance
     public function process(int $eventId): void
     {
         $orderId = OutboxEvent::findOrFail($eventId)->order_id;
-        DB::transaction(function () use ($orderId, $eventId): void {
+        $lease = (string) Str::uuid();
+        $request = DB::transaction(function () use ($orderId, $eventId, $lease): ?OutboxEvent {
             $order = Order::query()->lockForUpdate()->findOrFail($orderId);
             $event = OutboxEvent::query()->lockForUpdate()->findOrFail($eventId);
             if (! in_array($event->status, self::READY, true) || $event->available_at->isFuture()
-                || ! OrderState::canIssue($order->status)) {
+                || ! OrderState::canIssue($order->status)
+                || $order->refund()->whereIn('status', RefundOrder::BLOCK_REDEMPTION)->exists()) {
+                return null;
+            }
+            $event->update(['lease_token' => $lease, 'available_at' => now()->addMinutes(2), 'queued_until' => null]);
+
+            return $event;
+        }, 5);
+        if ($request === null) {
+            return;
+        }
+
+        /** @var OrderItem $item */
+        $item = OrderItem::where('order_id', $orderId)->with('supplier')->firstOrFail();
+        $cycle = $request->cycle_attempts + 1;
+        ['result' => $result, 'error' => $error] = $this->supplier->queryIssuance($item, $request->trace_id)
+            ?? $this->supplier->issue($item, $request->trace_id, $cycle);
+
+        DB::transaction(function () use ($orderId, $eventId, $lease, $item, $result, $error): void {
+            $order = Order::query()->lockForUpdate()->findOrFail($orderId);
+            $event = OutboxEvent::query()->lockForUpdate()->findOrFail($eventId);
+            if ($event->lease_token !== $lease || ! OrderState::canIssue($order->status)) {
                 return;
             }
-            /** @var OrderItem $item */
-            $item = $order->item()->with('supplier')->firstOrFail();
-            $attempt = $event->attempts + 1;
-            $cycle = $event->cycle_attempts + 1;
-            ['result' => $result, 'error' => $error] = $this->supplier->issue($item, $event->trace_id, $cycle);
-            $event->history()->create(['number' => $attempt, 'result' => $result, 'error' => $error]);
-            $status = match (true) {
-                $result === 'success' => 'succeeded',
-                $result === 'permanent', $cycle >= 3 => 'permanently_failed',
-                default => 'retryable_failed',
-            };
-            $event->update([
-                'status' => $status, 'attempts' => $attempt, 'cycle_attempts' => $cycle, 'last_error' => $error,
-                'available_at' => now()->addSeconds($status === 'retryable_failed' ? 15 * $cycle : 0),
-                'queued_until' => null,
-            ]);
-
-            if ($result === 'success') {
-                for ($sequence = 1; $sequence <= $item->quantity; $sequence++) {
-                    $code = bin2hex(random_bytes(24));
-                    $ticket = $order->tickets()->create([
-                        'sequence' => $sequence, 'status' => 'active', 'valid_days' => $item->valid_days,
-                        'code' => $code, 'code_hash' => hash('sha256', $code),
-                    ]);
-                    foreach ($item->venues as $venue) {
-                        $ticket->entitlements()->create(['venue_id' => $venue['id'], 'venue_name' => $venue['name'], 'status' => 'unused']);
-                    }
-                }
-            }
-            $order->update(['status' => $result === 'success' ? 'fulfilled' : 'fulfilling']);
-            Audit::record('issuance.'.$status, null, $order->id, ['attempt' => $attempt], $event->trace_id);
+            $this->recordResult($order, $event, $item, $result, $error);
         }, 5);
     }
 
-    public function requeue(User $actor, OutboxEvent $event): void
+    public function relayCancellations(): void
+    {
+        $ids = OutboxEvent::where('cancel_available_at', '<=', now())->orderBy('cancel_available_at')->limit(100)->pluck('id');
+        foreach ($ids as $id) {
+            Bus::dispatch((new IssueTickets($id, cancel: true))->onConnection('redis'));
+        }
+    }
+
+    public function cancel(int $eventId): void
+    {
+        $event = DB::transaction(function () use ($eventId): ?OutboxEvent {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($eventId);
+            if ($locked->cancel_available_at === null || $locked->cancel_available_at->isFuture()) {
+                return null;
+            }
+            if ($locked->cancel_attempts >= 3) {
+                $locked->update(['cancel_available_at' => null, 'cancel_error' => 'supplier_cancel_unconfirmed']);
+                Audit::record('issuance.cancel_unconfirmed', null, $locked->order_id, ['attempt' => $locked->cancel_attempts], $locked->trace_id);
+
+                return null;
+            }
+            $locked->update(['cancel_available_at' => now()->addMinutes(2), 'cancel_attempts' => $locked->cancel_attempts + 1]);
+
+            return $locked;
+        }, 5);
+        if ($event === null) {
+            return;
+        }
+        try {
+            $item = OrderItem::where('order_id', $event->order_id)->firstOrFail();
+            $success = $this->supplier->cancelIssuance($item, $event->trace_id);
+        } catch (Throwable $error) {
+            report($error);
+            $success = false;
+        }
+        DB::transaction(function () use ($event, $success): void {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+            if ($locked->cancelled_at !== null || $locked->cancel_attempts !== $event->cancel_attempts) {
+                return;
+            }
+            $retry = ! $success && $locked->cancel_attempts < 3;
+            $locked->update([
+                'cancelled_at' => $success ? now() : null,
+                'cancel_error' => $success ? null : 'supplier_cancel_unconfirmed',
+                'cancel_available_at' => $retry ? now()->addSeconds(15 * $locked->cancel_attempts + random_int(0, 3)) : null,
+            ]);
+            Audit::record('issuance.cancel_'.($success ? 'succeeded' : 'unconfirmed'), null, $event->order_id,
+                ['attempt' => $locked->cancel_attempts], $event->trace_id);
+        }, 5);
+    }
+
+    public function requeueCancellation(User $actor, OutboxEvent $event, string $reason): void
     {
         Gate::forUser($actor)->authorize('operate');
-        DB::transaction(function () use ($actor, $event): void {
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw new RuleViolation('invalid_reason', '請輸入 1 至 500 字的重新排程原因。', 422);
+        }
+        DB::transaction(function () use ($actor, $event, $reason): void {
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+            if ($locked->cancel_error === null || $locked->cancel_available_at !== null || $locked->cancelled_at !== null) {
+                throw new RuleViolation('not_retryable', '只有重試結束的供應商撤銷可以重新排程。');
+            }
+            $locked->update(['cancel_attempts' => 0, 'cancel_available_at' => now()]);
+            Audit::record('issuance.cancel_requeued', $actor->id, $event->order_id,
+                ['reason' => $reason, 'before' => 'unconfirmed', 'after' => 'pending'], $event->trace_id);
+        }, 5);
+    }
+
+    public function confirmCallback(OutboxEvent $event, OrderItem $item, string $eventId, string $status, string $hash): string
+    {
+        return DB::transaction(function () use ($event, $item, $eventId, $status, $hash): string {
+            $order = Order::query()->lockForUpdate()->findOrFail($event->order_id);
+            $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
+            $key = ['provider' => 'supplier', 'external_event_id' => $item->supplier_id.':'.$eventId];
+            $claimed = WebhookEvent::query()->insertOrIgnore($key + [
+                'order_id' => $order->id, 'body_hash' => $hash, 'outcome' => 'received',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $inbox = WebhookEvent::where($key)->lockForUpdate()->firstOrFail();
+            if (! $claimed) {
+                if (! hash_equals($inbox->body_hash, $hash)) {
+                    throw new RuleViolation('event_conflict', '回呼識別碼已用於其他內容。');
+                }
+
+                return $inbox->outcome;
+            }
+
+            $outcome = 'ignored_final';
+            if (OrderState::canIssue($order->status)) {
+                $outcome = 'awaiting_callback';
+                if ($status === 'succeeded') {
+                    $this->recordResult($order, $locked, $item, 'success', null);
+                    $outcome = 'succeeded';
+                }
+            }
+            $inbox->update(['outcome' => $outcome]);
+
+            return $outcome;
+        }, 5);
+    }
+
+    private function recordResult(Order $order, OutboxEvent $event, OrderItem $item, string $result, ?string $error): void
+    {
+        $attempt = $event->attempts + 1;
+        $cycle = $event->cycle_attempts + 1;
+        $event->history()->create(['number' => $attempt, 'result' => $result, 'error' => $error]);
+        $status = match (true) {
+            $result === 'success' => 'succeeded',
+            $result === 'permanent', $cycle >= 3 => 'permanently_failed',
+            $result === 'pending' => 'awaiting_callback',
+            default => 'retryable_failed',
+        };
+        $delay = match ($status) {
+            'retryable_failed' => 15 * $cycle + random_int(0, 3),
+            'awaiting_callback' => 15 * $cycle,
+            default => 0,
+        };
+        $event->update([
+            'status' => $status, 'attempts' => $attempt, 'cycle_attempts' => $cycle, 'last_error' => $error,
+            'available_at' => now()->addSeconds($delay), 'queued_until' => null, 'lease_token' => null,
+        ]);
+
+        if ($result === 'success') {
+            for ($sequence = 1; $sequence <= $item->quantity; $sequence++) {
+                $code = bin2hex(random_bytes(24));
+                $ticket = $order->tickets()->create([
+                    'sequence' => $sequence, 'status' => 'active', 'valid_days' => $item->valid_days,
+                    'code' => $code, 'code_hash' => hash('sha256', $code),
+                ]);
+                foreach ($item->venues as $venue) {
+                    $ticket->entitlements()->create(['venue_id' => $venue['id'], 'venue_name' => $venue['name'], 'status' => 'unused']);
+                }
+            }
+        }
+        $order->update(['status' => $result === 'success' ? 'fulfilled' : 'fulfilling']);
+        Audit::record('issuance.'.$status, null, $order->id, ['attempt' => $attempt, 'supplier_id' => $item->supplier_id], $event->trace_id);
+        if ($status === 'succeeded') {
+            app(NotificationCenter::class)->order($order, 'issued');
+        } elseif ($status === 'permanently_failed') {
+            app(NotificationCenter::class)->operations('supplier_failed', $event->trace_id, $order->id);
+        }
+    }
+
+    public function requeue(User $actor, OutboxEvent $event, string $reason = '例行開券補償'): void
+    {
+        Gate::forUser($actor)->authorize('operate');
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw new RuleViolation('invalid_reason', '請輸入 1 至 500 字的重新排程原因。', 422);
+        }
+        DB::transaction(function () use ($actor, $event, $reason): void {
             $order = Order::query()->lockForUpdate()->findOrFail($event->order_id);
             $locked = OutboxEvent::query()->lockForUpdate()->findOrFail($event->id);
             if ($order->status !== 'fulfilling' || $locked->status !== 'permanently_failed') {
                 throw new RuleViolation('not_retryable', '只有停止重試的開券事件可以重新排程。');
             }
             $locked->update(['status' => 'pending', 'cycle_attempts' => 0, 'available_at' => now(), 'queued_until' => null]);
-            Audit::record('issuance.requeued', $actor->id, $order->id, [], $locked->trace_id);
+            Audit::record('issuance.requeued', $actor->id, $order->id, [
+                'reason' => $reason, 'before' => 'permanently_failed', 'after' => 'pending',
+            ], $locked->trace_id);
         }, 5);
     }
 }

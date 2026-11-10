@@ -20,7 +20,9 @@ final class User extends Authenticatable implements FilamentUser
 
     protected function casts(): array
     {
-        return ['password' => 'hashed'];
+        return [
+            'password' => 'hashed', 'notification_email' => 'boolean', 'notification_line' => 'boolean', 'remind_expiry' => 'boolean',
+        ];
     }
 
     public function canAccessPanel(Panel $panel): bool
@@ -36,6 +38,22 @@ final class User extends Authenticatable implements FilamentUser
     public function administers(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function staffsPos(): bool
+    {
+        return in_array($this->role, ['pos_clerk', 'pos_supervisor'], true);
+    }
+
+    public function staffsStore(Store $store): bool
+    {
+        return $this->staffsPos() && $this->stores()->whereKey($store->id)->exists();
+    }
+
+    /** @return BelongsToMany<Store, $this> */
+    public function stores(): BelongsToMany
+    {
+        return $this->belongsToMany(Store::class, 'store_users');
     }
 
     /** @return BelongsToMany<Venue, $this> */

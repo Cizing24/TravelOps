@@ -11,6 +11,8 @@ final class Order extends Model
 {
     protected $guarded = [];
 
+    protected $attributes = ['source_channel' => 'online', 'payment_method' => 'mock_online'];
+
     protected function casts(): array
     {
         return ['pay_by' => 'immutable_datetime'];
@@ -20,6 +22,12 @@ final class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<Store, $this> */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 
     /** @return HasOne<OrderItem, $this> */

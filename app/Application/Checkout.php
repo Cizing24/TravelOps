@@ -6,9 +6,11 @@ use App\Domain\Money;
 use App\Domain\OrderState;
 use App\Domain\RuleViolation;
 use App\Models\InventoryBalance;
+use App\Models\InventoryMovement;
 use App\Models\InventoryReservation;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,19 +18,29 @@ use Illuminate\Support\Str;
 
 final class Checkout
 {
-    public function place(User $customer, int $productId, int $quantity, string $key): Order
+    public function place(User $customer, int $productId, int $quantity, string $key, ?Store $store = null, string $method = 'mock_online'): Order
     {
-        Gate::forUser($customer)->authorize('create', Order::class);
-        if ($quantity < 1 || $quantity > 10 || ! Str::isUuid($key)) {
+        if ($quantity < 1 || $quantity > 10 || ! Str::isUuid($key)
+            || ! in_array($method, $store === null ? ['mock_online'] : ['cash', 'mock_card'], true)) {
             throw new RuleViolation('invalid_checkout', '數量須為 1 到 10，且需提供有效的下單識別碼。', 422);
         }
 
-        return DB::transaction(function () use ($customer, $productId, $quantity, $key): Order {
-            User::query()->lockForUpdate()->findOrFail($customer->id);
-            $existing = Order::where('user_id', $customer->id)->where('idempotency_key', $key)->first();
+        return DB::transaction(function () use ($customer, $productId, $quantity, $key, $store, $method): Order {
+            $actor = User::query()->lockForUpdate()->findOrFail($customer->id);
+            if ($store === null) {
+                Gate::forUser($actor)->authorize('create', Order::class);
+            } else {
+                abort_unless($actor->staffsStore($store), 403);
+                Store::query()->lockForUpdate()->findOrFail($store->id);
+            }
+            $existing = Order::where('user_id', $actor->id)->where('idempotency_key', $key)->first();
+            if ($existing === null && $store !== null) {
+                $existing = Order::where('store_id', $store->id)->where('idempotency_key', $key)->first();
+            }
             if ($existing !== null) {
                 $item = $existing->item()->firstOrFail();
-                if ($item->product_id !== $productId || $item->quantity !== $quantity) {
+                if ($item->product_id !== $productId || $item->quantity !== $quantity
+                    || $existing->store_id !== $store?->id || $existing->payment_method !== $method) {
                     throw new RuleViolation('key_conflict', '同一識別碼不能用於不同訂單內容。');
                 }
 
@@ -49,6 +61,9 @@ final class Checkout
             $total = Money::total($product->price, $quantity);
             $order = Order::create([
                 'user_id' => $customer->id,
+                'store_id' => $store?->id,
+                'source_channel' => $store === null ? 'online' : 'pos',
+                'payment_method' => $method,
                 'reference' => (string) Str::uuid(),
                 'idempotency_key' => $key,
                 'status' => 'pending_payment',
@@ -63,8 +78,9 @@ final class Checkout
             ]);
             $inventory->decrement('available', $quantity);
             $order->reservation()->create(['product_id' => $productId, 'quantity' => $quantity, 'status' => 'held']);
+            $this->recordMovement($order, $productId, 'reservation', -$quantity, '建立庫存預留', $actor->id);
             $order->payment()->create(['idempotency_key' => (string) Str::uuid(), 'status' => 'initiated', 'amount' => $total]);
-            Audit::record('order.placed', $customer->id, $order->id);
+            Audit::record('order.placed', $customer->id, $order->id, ['store_id' => $store?->id, 'payment_method' => $method], $order->reference);
 
             return $order;
         }, 5);
@@ -101,12 +117,12 @@ final class Checkout
     public function releasePending(Order $order, string $status, ?int $actor): void
     {
         $order->update(['status' => $status]);
-        $this->releaseInventory($order, 'held', 'released');
+        $this->releaseInventory($order, 'held', 'released', $actor);
         $order->payment()->where('status', 'initiated')->update(['status' => 'failed']);
         Audit::record('order.'.$status, $actor, $order->id);
     }
 
-    public function releaseInventory(Order $order, string $expected, string $result): void
+    public function releaseInventory(Order $order, string $expected, string $result, ?int $actor = null): void
     {
         /** @var InventoryReservation $reservation */
         $reservation = $order->reservation()->lockForUpdate()->firstOrFail();
@@ -116,6 +132,10 @@ final class Checkout
         InventoryBalance::where('product_id', $reservation->product_id)->lockForUpdate()
             ->firstOrFail()->increment('available', $reservation->quantity);
         $reservation->update(['status' => $result]);
+        $this->recordMovement(
+            $order, $reservation->product_id, $result === 'returned' ? 'refund' : 'release', $reservation->quantity,
+            $result === 'returned' ? '退款回補庫存' : '釋放未付款庫存', $actor,
+        );
     }
 
     public function consume(Order $order): void
@@ -123,5 +143,15 @@ final class Checkout
         if ($order->reservation()->where('status', 'held')->update(['status' => 'sold']) !== 1) {
             throw new RuleViolation('inventory_conflict', '庫存預留已失效。');
         }
+        $reservation = $order->reservation()->firstOrFail();
+        $this->recordMovement($order, $reservation->product_id, 'sale', 0, '確認付款，將預留轉為已售', $order->user_id);
+    }
+
+    private function recordMovement(Order $order, int $productId, string $kind, int $delta, string $reason, ?int $actor): void
+    {
+        InventoryMovement::create([
+            'order_id' => $order->id, 'product_id' => $productId, 'kind' => $kind,
+            'delta' => $delta, 'reason' => $reason, 'user_id' => $actor,
+        ]);
     }
 }

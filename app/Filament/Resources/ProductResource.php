@@ -43,9 +43,10 @@ final class ProductResource extends OperationsResource
             IconColumn::make('listed')->label('上架')->boolean(),
         ])->defaultSort('id', 'desc')->filters([TernaryFilter::make('listed')->label('已上架')])->recordActions([
             self::editor(true),
-            self::guardedAction(Action::make('stock')->label('調整庫存')->schema([
+            self::guardedAction(Action::make('stock')->label('調整庫存')->requiresConfirmation()->schema([
                 TextInput::make('delta')->label('增加或減少的數量')->integer()->minValue(-1000000)->maxValue(1000000)->required(),
-            ]), fn (array $data, Product $record) => app(CatalogAdmin::class)->adjustStock(auth()->user(), $record, (int) $data['delta'])),
+                Textarea::make('reason')->label('調整原因')->required()->maxLength(500),
+            ]), fn (array $data, Product $record) => app(CatalogAdmin::class)->adjustStock(auth()->user(), $record, (int) $data['delta'], $data['reason'])),
         ]);
     }
 

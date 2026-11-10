@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property CarbonImmutable|null $available_at */
 final class Refund extends Model
 {
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return ['available_at' => 'immutable_datetime', 'processed_at' => 'immutable_datetime'];
+    }
 
     /** @return BelongsTo<Order, $this> */
     public function order(): BelongsTo
