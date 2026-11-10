@@ -29,13 +29,16 @@ final class RefundResource extends OperationsResource
 
     public static function table(Table $table): Table
     {
+        $table->emptyStateHeading('目前沒有符合條件的退款紀錄')
+            ->emptyStateDescription('旅客或門市主管送出申請後，可在這裡查閱審核及退款處理進度。');
+
         return $table->columns([
             TextColumn::make('order.reference')->label('訂單編號')->searchable(),
             self::status(),
             TextColumn::make('amount')->label('金額')->formatStateUsing(fn (int $state) => Money::twd($state)),
             TextColumn::make('reason')->label('原因')->wrap(),
-            TextColumn::make('reviewer.name')->label('審核人員'),
-            TextColumn::make('attempts')->label('嘗試次數'),
+            TextColumn::make('reviewer.name')->label('審核人員')->visibleFrom('md'),
+            TextColumn::make('attempts')->label('嘗試次數')->visibleFrom('md'),
         ])->poll('5s')->defaultSort('id', 'desc')->filters([
             self::statusFilter(['requested', 'approved', 'submitted', 'pending', 'processed', 'failed', 'requires_review', 'rejected']),
         ])->recordActions([
@@ -43,6 +46,7 @@ final class RefundResource extends OperationsResource
                 'reference' => $record->order->reference, 'day' => $record->created_at?->timezone('Asia/Taipei')->toDateString(),
             ])),
             Action::make('approve')->label('核准模擬退款')->requiresConfirmation()->modalSubmitActionLabel('確認退款')
+                ->modalDescription('核准後會排程模擬退款。請等候金流回覆，再確認是否已退款。')
                 ->schema([Select::make('scenario')->label('模擬退款情境')->options(MockRefundGateway::SCENARIOS)->default('success')->required()])
                 ->visible(fn (Refund $record) => $record->status === 'requested')
                 ->action(function (Action $action, array $data, Refund $record): void {

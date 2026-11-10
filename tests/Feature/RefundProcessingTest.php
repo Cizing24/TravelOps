@@ -21,7 +21,8 @@ final class RefundProcessingTest extends TestCase
     public function test_pending_refund_blocks_redemption_and_callback_restores_inventory_once(): void
     {
         $product = Product::factory()->stocked(1)->create();
-        $order = $this->place($product);
+        $customer = User::factory()->create();
+        $order = $this->place($product, $customer);
         $this->pay($order);
         $this->issue($order);
         $merchant = User::factory()->create(['role' => 'merchant']);
@@ -31,9 +32,14 @@ final class RefundProcessingTest extends TestCase
         $operator = User::factory()->create(['role' => 'operator']);
         $refunds = app(RefundOrder::class);
         $refund = $refunds->request($operator, $order);
+        $this->actingAs($customer)->get(route('tickets.show', $ticket))
+            ->assertOk()->assertSee('場館核銷 QR Code');
         $refunds->review($operator, $refund, true, 'delayed');
         $refunds->process($refund->id);
         self::assertSame('pending', $refund->refresh()->status);
+        $this->get(route('tickets.show', $ticket))
+            ->assertOk()->assertSee('暫停核銷')->assertDontSee('場館核銷 QR Code')
+            ->assertDontSee($ticket->code);
         $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'succeeded']);
         $this->actingAs($merchant)->postJson('/merchant/redemptions', ['venue_id' => $venue->id, 'code' => $ticket->code])
             ->assertConflict()->assertJsonPath('code', 'refund_pending');

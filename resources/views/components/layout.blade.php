@@ -6,24 +6,27 @@
     <meta name="referrer" content="same-origin">
     <title>{{ $title ?? '旅遊票券' }}｜TravelOps</title>
     <link rel="stylesheet" href="{{ asset('build/app.css') }}">
+    <script src="{{ asset('travelops-forms.js') }}" defer></script>
     @livewireStyles
 </head>
 <body>
     <a class="button skip" href="#content">跳至主要內容</a>
     <header class="site-head">
         <nav class="shell site-nav" aria-label="主選單">
-            <a class="wordmark" href="{{ route('products.index') }}"><span class="mark" aria-hidden="true">↗</span>TravelOps</a>
+            <a class="wordmark" href="{{ route('products.index') }}">
+                <span class="mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5M8 5h11v11"/></svg></span>TravelOps
+            </a>
             <div class="nav-links">
-                <a href="{{ route('products.index') }}">票券目錄</a>
+                <a href="{{ route('products.index') }}" @if(request()->routeIs('products.index')) aria-current="page" @endif>票券目錄</a>
                 @auth
                     @if(auth()->user()->role === 'customer')
-                        <a href="{{ route('orders.index') }}">我的訂單</a>
-                        <a href="{{ route('tickets.index') }}">我的票券</a>
-                        <a href="{{ route('notifications.index') }}">通知中心</a>
+                        <a href="{{ route('orders.index') }}" @if(request()->routeIs('orders.index')) aria-current="page" @endif>我的訂單</a>
+                        <a href="{{ route('tickets.index') }}" @if(request()->routeIs('tickets.index')) aria-current="page" @endif>我的票券</a>
+                        <a href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.index')) aria-current="page" @endif>通知中心</a>
                     @elseif(auth()->user()->role === 'merchant')
-                        <a href="{{ route('merchant.index') }}">場館核銷</a>
+                        <a href="{{ route('merchant.index') }}" @if(request()->routeIs('merchant.index')) aria-current="page" @endif>場館核銷</a>
                     @elseif(auth()->user()->staffsPos())
-                        <a href="{{ route('pos.stores') }}">門市 POS</a>
+                        <a href="{{ route('pos.stores') }}" @if(request()->routeIs('pos.stores')) aria-current="page" @endif>門市 POS</a>
                     @else
                         <a href="{{ url('/ops') }}">營運後台</a>
                         <a href="{{ route('notifications.index') }}">通知中心</a>

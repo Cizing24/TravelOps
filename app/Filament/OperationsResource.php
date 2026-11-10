@@ -31,9 +31,10 @@ abstract class OperationsResource extends Resource
         return TextColumn::make($field)->label($label)->badge()
             ->formatStateUsing(fn (string $state): string => __('status.'.$state))
             ->color(fn (string $state): string => match ($state) {
-                'paid', 'fulfilled', 'active', 'succeeded', 'processed', 'redeemed' => 'success',
+                'paid', 'fulfilled', 'active', 'succeeded', 'processed', 'redeemed', 'sent' => 'success',
                 'permanently_failed', 'failed', 'revoked', 'rejected' => 'danger',
-                'pending', 'pending_payment', 'requested', 'retryable_failed', 'fulfilling' => 'warning',
+                'pending', 'pending_payment', 'requested', 'retryable_failed', 'requires_review' => 'warning',
+                'approved', 'submitted', 'awaiting_callback', 'fulfilling' => 'info',
                 default => 'gray',
             });
     }

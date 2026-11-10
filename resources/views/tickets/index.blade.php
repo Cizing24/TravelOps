@@ -1,5 +1,6 @@
 <x-layout title="我的票券">
-    <p class="kicker muted">旅客中心</p><h1 class="mt-2 mb-6">我的票券</h1>
+    <h1>我的票券</h1>
+    <p class="muted mt-2 mb-6">前往場館時，開啟票券詳情出示核銷憑證。</p>
     <ul class="grid gap-3">
         @forelse($tickets as $ticket)
             <li class="card row">

@@ -2,6 +2,7 @@
     <a class="underline" href="{{ route('pos.index', $store) }}">返回 {{ $store->name }}</a>
     <h1 class="my-4">{{ $store->name }}日結</h1>
     <section class="card">
+        <p class="muted mb-4">依付款日查看本店各付款方式的筆數與金額。</p>
         <form class="flex flex-wrap items-end gap-3" method="get" action="{{ route('pos.closing', $store) }}">
             <div>
                 <label for="closing-from">營業起日（臺灣時間）</label>
