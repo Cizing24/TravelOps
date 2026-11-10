@@ -1,6 +1,6 @@
 # TravelOps
 
-TravelOps 是旅遊電子票券履約與營運展示系統。V2 涵蓋線上與門市共用庫存、多供應商開券、非同步退款、交易對帳、通知及營運報表。場館、帳號和交易均使用合成資料。
+TravelOps 是獨立開發的旅遊電子票券履約與營運平台作品。V2 涵蓋線上與門市共用庫存、多供應商開券、非同步退款、交易對帳、通知及營運報表。場館、帳號和交易均使用合成資料。
 
 ## 本地啟動
 
@@ -11,7 +11,7 @@ docker compose up --build -d --wait
 docker compose exec app php artisan travelops:demo --reconciliation-fixture
 ```
 
-開啟 [票券目錄](http://localhost:8080/products)、[場館核銷](http://localhost:8080/merchant/redemptions) 或 [Filament 營運台](http://localhost:8080/ops)。第一次啟動會遷移並建立示意商品，第二行會產生 Demo 帳密與交易範例。初始化服務將應用程式金鑰與 Webhook HMAC 密鑰保存在本地 volume。Web 只綁定 loopback。MySQL 與 Redis 只開放給 Compose 網路。
+開啟 [票券目錄](http://localhost:8080/products)、[門市 POS](http://localhost:8080/pos)、[場館核銷](http://localhost:8080/merchant/redemptions) 或 [Filament 營運台](http://localhost:8080/ops)。第一次啟動會遷移並建立示意商品，第二行會產生 Demo 帳密與交易範例。初始化服務將應用程式金鑰與 Webhook HMAC 密鑰保存在本地 volume。Web 只綁定 loopback。MySQL 與 Redis 只開放給 Compose 網路。
 
 遺失 Demo 密碼時執行 `docker compose exec app php artisan travelops:demo --reset-passwords`。門市人員從 `/pos` 進入授權門市。操作流程見 [V2 展示指南](docs/demo/V2_DEMO_GUIDE.md)。
 
@@ -55,8 +55,10 @@ flowchart LR
     Worker --> DB
 ```
 
-架構與邊界見 [V2 系統總覽](docs/architecture/V2_SYSTEM_OVERVIEW.md)、[V2 資料模型](docs/architecture/V2_DATA_MODEL.md) 及 [報表定義](docs/architecture/REPORTING_DEFINITIONS.md)。驗證結果見 [V2 交付報告](docs/reports/V2_DELIVERY_REPORT.md)。
+線上與門市共用 MySQL 庫存鎖與預留邏輯。簽章回呼、冪等鍵和 Outbox 保護交易重送與非同步處理。門市、場館和營運操作依角色與指派範圍授權，關鍵狀態轉換保留稽核紀錄。
+
+架構與邊界見 [V2 系統總覽](docs/architecture/V2_SYSTEM_OVERVIEW.md)、[V2 資料模型](docs/architecture/V2_DATA_MODEL.md) 及 [報表定義](docs/architecture/REPORTING_DEFINITIONS.md)。工程取捨見 [作品案例](docs/portfolio/TRAVELOPS_CASE_STUDY.md)。GitHub Actions 在 Linux Compose 執行 PHP 格式、靜態分析、PHPUnit 和 Chrome 旅程。歷史與本輪證據分別見 [V2 交付報告](docs/reports/V2_DELIVERY_REPORT.md) 與 [收尾驗收](docs/reports/V2_POLISH_VALIDATION.md)。
 
 ## 展示限制
 
-付款、退款與供應商均為模擬。核銷可使用文字代碼，支援將 QR 掃描結果貼入輸入欄。Mock webhook 僅在本地或測試環境且有獨立密鑰時啟用。Compose 憑證僅供本地 Demo，`.env`、資料目錄、執行期密鑰及 Demo 帳密都不應加入版控。
+付款、退款、供應商與外部通知均為模擬。核銷可輸入文字代碼或貼上 QR 掃描結果。實機掃碼及壓力測試尚未驗證。Mock webhook 僅在本地或測試環境且有獨立密鑰時啟用。Compose 憑證僅供本地 Demo，`.env`、資料目錄、執行期密鑰及 Demo 帳密都不應加入版控。
