@@ -1,0 +1,64 @@
+{
+  "people": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/users.svg",
+    "file": "people.svg",
+    "bytes": 456
+  },
+  "laravel": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/laravel.svg",
+    "file": "laravel.svg",
+    "bytes": 1051
+  },
+  "tower": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/shield-check.svg",
+    "file": "tower.svg",
+    "bytes": 495
+  },
+  "mysql": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/mysql-icon-light.svg",
+    "file": "mysql.svg",
+    "bytes": 925,
+    "dark_file": "mysql_dark.svg",
+    "dark_url": "https://svgl.app/library/mysql-icon-dark.svg"
+  },
+  "clock": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/clock.svg",
+    "file": "clock.svg",
+    "bytes": 344
+  },
+  "webhook": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/radio.svg",
+    "file": "webhook.svg",
+    "bytes": 510
+  },
+  "mock": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/plug.svg",
+    "file": "mock.svg",
+    "bytes": 435
+  },
+  "queue": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/list-ordered.svg",
+    "file": "queue.svg",
+    "bytes": 480
+  },
+  "redis": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/redis.svg",
+    "file": "redis.svg",
+    "bytes": 1928
+  },
+  "docker": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/docker.svg",
+    "file": "docker.svg",
+    "bytes": 1488
+  }
+}

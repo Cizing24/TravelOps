@@ -1,0 +1,9 @@
+services:
+  init:
+    image: travelops-local:portfolio-media
+  app:
+    image: travelops-local:portfolio-media
+  queue:
+    image: travelops-local:portfolio-media
+  scheduler:
+    image: travelops-local:portfolio-media

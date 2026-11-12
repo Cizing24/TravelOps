@@ -1,0 +1,30 @@
+flowchart TB
+  accTitle: TravelOps critical transaction flow
+  accDescr: Shared inventory locks, atomic payment and Outbox, calls outside order transactions, verified confirmation, and coordinated refund and venue redemption.
+  online[Online checkout] --> reserve
+  pos[Store-authorized POS] --> reserve
+  subgraph tx1[Transaction 1 · reserve shared inventory]
+    reserve[Lock actor / product / inventory balance<br/>Validate quantity and idempotency key] --> snapshot[Order + item snapshot + inventory reservation]
+  end
+  snapshot --> payment[Signed Mock payment confirmation<br/>POS local Mock capture is in its outer transaction]
+  subgraph tx2[Payment transaction]
+    payment --> inbox[Lock order + payment<br/>Unique event + body hash + amount validation]
+    inbox --> outbox[Consume reservation + mark paid<br/>Persist issuance Outbox + notification rows]
+  end
+  outbox --> relay[Scheduler scans durable due work]
+  relay --> queue[Redis Queue → Worker]
+  queue --> claim[Short transaction<br/>Lock order + Outbox; persist lease + request key]
+  claim --> adapter[OUTSIDE order transaction<br/>Query Mock ledger before issuing or retrying]
+  adapter --> result{Result available?}
+  result -->|yes| confirm[New transaction<br/>Validate lease / order state; record result]
+  result -->|pending or timeout| recover[Durable retry / query recovery<br/>or signed Mock callback with unique Inbox event]
+  recover --> confirm
+  confirm --> ticket[Ticket + per-venue entitlements]
+  ticket --> guard[Redemption transaction<br/>Lock order, ticket and venue entitlement]
+  refund[Operations approves full refund<br/>under the same order lock] --> guard
+  guard --> check{Approved / unresolved refund?}
+  check -->|yes| blocked[Pause redemption]
+  check -->|no| redeem[Consume one authorized venue entitlement]
+  refund --> refundjob[Durable refund relay → Worker<br/>Mock refund call outside order lock]
+  refundjob --> settled[Confirmed settlement transaction<br/>Revoke tickets + release sold stock<br/>Schedule supplier cancellation]
+  note[Synthetic data · local Mock integrations<br/>No claim of real payments or production throughput]
