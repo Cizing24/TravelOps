@@ -1,0 +1,7 @@
+{$DEMO_HOST} {
+    request_body {
+        max_size 64KB
+    }
+    header Strict-Transport-Security "max-age=31536000"
+    reverse_proxy web:8080
+}

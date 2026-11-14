@@ -10,7 +10,13 @@ final class MockGateway
 {
     public function enabled(): bool
     {
-        return app()->environment('local', 'testing')
+        $publicDemo = app()->environment('staging')
+            && config('travelops.public_demo') === true
+            && config('app.debug') === false
+            && str_starts_with((string) config('app.url'), 'https://')
+            && config('database.connections.mysql.database') === 'travelops_public_demo';
+
+        return (app()->environment('local', 'testing') || $publicDemo)
             && config('travelops.demo') === true
             && strlen((string) config('travelops.webhook_secret')) >= 32;
     }
