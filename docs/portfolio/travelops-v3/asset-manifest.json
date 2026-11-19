@@ -1,0 +1,161 @@
+{
+  "sourceCommit": "11c0e7ae5fa828a69438f807be220c4f37be41c9",
+  "capturedAt": "2026-11-12",
+  "video": {
+    "duration": 74.36,
+    "codec": "h264",
+    "width": 1280,
+    "height": 720,
+    "audio": false
+  },
+  "assets": [
+    {
+      "file": "architecture/travelops-system-overview-dark.png",
+      "bytes": 308699,
+      "sha256": "6305c04b2e3945258bbd18eee6a7fabd746a1a71a35dc2de7f2f21a5c7251bda",
+      "dimensions": [
+        2800,
+        1700
+      ]
+    },
+    {
+      "file": "architecture/travelops-system-overview.html",
+      "bytes": 111303,
+      "sha256": "13e36a76445477587f24ff75758b3b9279ac38a9cd467a60be4508b68d5c9c77"
+    },
+    {
+      "file": "architecture/travelops-system-overview.mmd",
+      "bytes": 1117,
+      "sha256": "93c8f3d200986c84ff5e5ce2f948f924529037c0df62aee513aeab853d586bc3"
+    },
+    {
+      "file": "architecture/travelops-system-overview.png",
+      "bytes": 291503,
+      "sha256": "cfd71de1b252f119e9522542acc1f585c2fb8dbc4dcb6cc4778d43aecb652771",
+      "dimensions": [
+        2800,
+        1700
+      ]
+    },
+    {
+      "file": "architecture/travelops-system-overview.svg",
+      "bytes": 32810,
+      "sha256": "d80a79d118fd9bd2d7a4da049ffe03992f2010565e51b11d14a12318da6f0a19"
+    },
+    {
+      "file": "architecture/travelops-transaction-flow.mmd",
+      "bytes": 2147,
+      "sha256": "f183bc262a563098ca82010c87c3b8017ea84e22825a13e9e6ed7a17f5f94c6d"
+    },
+    {
+      "file": "architecture/travelops-transaction-flow.png",
+      "bytes": 944519,
+      "sha256": "7d2229b9c505942dac964014100e8a5b20ddcfc233f9a8f9641894879ac881de",
+      "dimensions": [
+        3132,
+        11888
+      ]
+    },
+    {
+      "file": "architecture/travelops-transaction-flow.svg",
+      "bytes": 45813,
+      "sha256": "07458473506f00db329fab86606efb4076f5348e3f3fc01a8a3b14b354593dc4"
+    },
+    {
+      "file": "screenshots/travelops-catalog-desktop.png",
+      "bytes": 136999,
+      "sha256": "1cd20afd6d7c5b69763a52a5ff8ba1525e3ddeab8c46bb441039a695ae2c5469",
+      "dimensions": [
+        1440,
+        1120
+      ]
+    },
+    {
+      "file": "screenshots/travelops-ops-reconciliation.png",
+      "bytes": 96494,
+      "sha256": "083561ca07eada7658a4e8aa2f5c0fc2ae1b7693b13fe3b548d9afaf2565f941",
+      "dimensions": [
+        1440,
+        1384
+      ]
+    },
+    {
+      "file": "screenshots/travelops-ops-report.png",
+      "bytes": 113712,
+      "sha256": "5fafd00d0c0d485e2f631b2bdff120b51604ea33126d06202b32a598215ce589",
+      "dimensions": [
+        1440,
+        1773
+      ]
+    },
+    {
+      "file": "screenshots/travelops-order-progress.png",
+      "bytes": 90457,
+      "sha256": "ef1a452a3a14d11a87033a242a1e7d0816c02514b32c99cd0bba3e86d6a3b4fe",
+      "dimensions": [
+        1440,
+        903
+      ]
+    },
+    {
+      "file": "screenshots/travelops-pos-mobile.png",
+      "bytes": 100233,
+      "sha256": "a398232eba86fa027519060f30a5d92fd54c7a62a5ce1d29a3cd00d50a841ebb",
+      "dimensions": [
+        390,
+        1430
+      ]
+    },
+    {
+      "file": "screenshots/travelops-pos-summary.png",
+      "bytes": 110571,
+      "sha256": "4b4df3e8e96db49ddfba9ebc38427b352593c485f42a593f80e99c6cc1e57f40",
+      "dimensions": [
+        1440,
+        1098
+      ]
+    },
+    {
+      "file": "screenshots/travelops-product-mobile.png",
+      "bytes": 88673,
+      "sha256": "af9e7860e662550303dea8eb273d45fad6c52c1db45b9c1fa0deea9b78da5503",
+      "dimensions": [
+        390,
+        1383
+      ]
+    },
+    {
+      "file": "screenshots/travelops-ticket-entitlements.png",
+      "bytes": 81717,
+      "sha256": "7e461c09e32b5c6fdd269a59bccd9c279c2080cf0dfbc958169f3e5970aa6ca0",
+      "dimensions": [
+        1440,
+        900
+      ]
+    },
+    {
+      "file": "video/travelops-v3-demo-poster.png",
+      "bytes": 322238,
+      "sha256": "5f6c51e34c78754a7fef33d1e284d626cf2c326df7177d5f39d3221556ff1364",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "video/travelops-v3-demo.en.srt",
+      "bytes": 1030,
+      "sha256": "729d4935f0adaca185b5a00c0fd24531a53140558101fddd83268d4ea38f1e82"
+    },
+    {
+      "file": "video/travelops-v3-demo.mp4",
+      "bytes": 1045600,
+      "sha256": "ad746872b2a3b136b4db4b6f01dd5e42e262b490c32588f70c0fbf9efa31dbcf"
+    },
+    {
+      "file": "video/travelops-v3-demo.zh-tw.srt",
+      "bytes": 869,
+      "sha256": "502c1fbaa1a2dd7e313446759ff6b2f7bf88214cdc6d79bf16e2b8c6cf67939a"
+    }
+  ]
+}

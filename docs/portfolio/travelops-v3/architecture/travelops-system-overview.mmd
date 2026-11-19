@@ -1,0 +1,19 @@
+flowchart TB
+  accTitle: TravelOps system overview
+  accDescr: Four roles use authorized Laravel interfaces, MySQL transactions, a scheduler, Redis jobs and local Mock fulfillment with verified results.
+  customer[Customer storefront] --> web
+  pos[Store POS] --> web
+  venue[Venue staff] --> web
+  ops[Operations] --> web
+  subgraph local[Docker Compose · isolated local runtime]
+    web[Laravel 13 · Blade / Livewire / Filament] -->|role / owner / store / venue authorization| app[Application services]
+    app -->|SQL transactions| db[(MySQL · orders / inventory / tickets / refunds<br/>Outbox / Inbox / audit / separate Mock ledgers)]
+    db -->|scan durable due rows| scheduler[Scheduler]
+    scheduler -->|enqueue| redis[(Redis Queue)]
+    redis -->|async jobs| worker[Queue Worker]
+    worker -->|claim / confirm transactions| db
+    worker -->|outside order locks| mock[Local Mock · supplier / refund / payment]
+    mock -->|result / callback| receiver[Verified receivers / status queries]
+    receiver -->|apply result| app
+  end
+  note[Independent portfolio demo · synthetic data · Mock integrations]
