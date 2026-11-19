@@ -2,6 +2,8 @@
 
 TravelOps 是獨立開發的旅遊電子票券履約與營運平台作品。V3 改善旅客購票、門市結帳與營運查核介面，沿用共用庫存、多供應商開券、非同步退款、交易對帳、通知及報表。場館、帳號和交易均使用合成資料。
 
+公開 Demo 的獨立 PHP-FPM／Nginx／HTTPS、MySQL、Redis、Queue 與 Scheduler 配置見[部署說明](docs/deployment/DEMO_DEPLOYMENT.md)及[維運手冊](docs/deployment/DEMO_OPERATIONS.md)。目前尚未取得可用雲端 VM，不能視為已公開上線。
+
 ## 本地啟動
 
 環境需有 Docker Engine（Windows 可使用 Docker Desktop 的 Linux containers）及 Docker Compose v2.24 以上。以下指令可在 PowerShell 或一般 shell 執行，PHP、Composer、Node、MySQL 與 Redis 由容器提供。

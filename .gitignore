@@ -1,5 +1,8 @@
 /.env
 /.env.testing
+/.env.demo
+/.env.demo.*
+!/.env.demo.example
 /.runtime/
 /vendor/
 /node_modules/

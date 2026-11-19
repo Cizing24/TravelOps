@@ -1,0 +1,122 @@
+name: travelops-public-demo
+
+x-app: &app
+  image: travelops-demo:${RELEASE_TAG:?Set RELEASE_TAG to the tested commit SHA}
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.demo
+    target: app
+  environment:
+    APP_NAME: TravelOps
+    APP_ENV: staging
+    APP_DEBUG: "false"
+    APP_URL: https://${DEMO_HOST:?Set DEMO_HOST}
+    APP_KEY: ${APP_KEY:?Set a random APP_KEY}
+    APP_LOCALE: zh_TW
+    TRAVELOPS_DEMO: "true"
+    TRAVELOPS_PUBLIC_DEMO: "true"
+    TRAVELOPS_WEBHOOK_SECRET: ${TRAVELOPS_WEBHOOK_SECRET:?Set a separate HMAC secret}
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: "3306"
+    DB_DATABASE: travelops_public_demo
+    DB_USERNAME: travelops_runtime
+    DB_PASSWORD: ${DB_PASSWORD:?Set runtime secret}
+    REDIS_CLIENT: predis
+    REDIS_HOST: redis
+    REDIS_PASSWORD: ${REDIS_PASSWORD:?Set Redis secret}
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: redis
+    SESSION_SECURE_COOKIE: "true"
+    SESSION_HTTP_ONLY: "true"
+    SESSION_SAME_SITE: strict
+    SESSION_LIFETIME: "60"
+  init: true
+  mem_limit: 512m
+  cpus: 0.75
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: travelops_public_demo
+      MYSQL_USER: travelops_migrator
+      MYSQL_PASSWORD: ${MYSQL_MIGRATOR_PASSWORD:?Set a separate migrator secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set a separate migrator secret}
+    volumes: ["mysql:/var/lib/mysql"]
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h127.0.0.1 -u$$MYSQL_USER $$MYSQL_DATABASE -Nse 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  redis:
+    image: redis:7.4-alpine
+    command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set an isolated Redis secret}
+    volumes: ["redis:/data"]
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  app:
+    <<: *app
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "redis", "--sleep=1", "--timeout=30", "--tries=3", "--max-time=3600"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  web:
+    image: travelops-demo-web:${RELEASE_TAG:?Set RELEASE_TAG}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.demo
+      target: web
+    depends_on: [app]
+    restart: unless-stopped
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  https:
+    image: caddy:2-alpine
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set a controlled public DNS hostname}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./docker/Caddyfile.demo:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web: {condition: service_healthy}
+    restart: unless-stopped
+    mem_limit: 128m
+
+volumes:
+  mysql:
+  redis:
+  caddy_data:
+  caddy_config:

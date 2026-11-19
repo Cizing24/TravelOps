@@ -95,6 +95,8 @@ final class OrderController
 
     public function webhook(Request $request, PaymentWebhook $webhook): JsonResponse
     {
+        abort_unless(app()->environment('local', 'testing'), 404);
+
         return response()->json([
             'outcome' => $webhook->receive($request->getContent(), (string) $request->header('X-TravelOps-Signature')),
         ]);

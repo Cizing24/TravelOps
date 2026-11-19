@@ -39,6 +39,9 @@
         </nav>
     </header>
     <main id="content" class="shell" tabindex="-1">
+        @if(config('travelops.public_demo'))
+            <p class="notice mb-6" role="note">公開合成 Demo：所有場館、交易、付款及通知均為模擬，不會收費，票券不可用於真實入場。登入及營運操作僅提供受控展示身分，請勿輸入真實個資。</p>
+        @endif
         @if(session('notice')) <p class="notice mb-6" role="status">{{ session('notice') }}</p> @endif
         @if($errors->any())
             <div class="errors mb-6" role="alert">
